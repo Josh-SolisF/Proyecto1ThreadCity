@@ -67,6 +67,8 @@ Compilado para arquitectura **x86-64 Linux**
 [https://github.com/Josh-SolisF/Proyecto1ThreadCity.git](https://github.com/Josh-SolisF/Proyecto1Thread
 
 
+![alt text]([http://url/to/img.png](https://github.com/Josh-SolisF/Proyecto1ThreadCity/blob/main/Thread%20City.png))
+
 
 
 
