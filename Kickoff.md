@@ -66,7 +66,5 @@ Compilado para arquitectura **x86-64 Linux**
 **Proyecto1ThreadCity**, link al repositorio para el control de versiones:  
 [https://github.com/Josh-SolisF/Proyecto1ThreadCity.git](https://github.com/Josh-SolisF/Proyecto1Thread
 
-![Thread City UML](https://github.com/Josh-SolisF/Proyecto1ThreadCity/blob/main/Thread%
-
-
+![Threads and Schedules UML](https://raw.githubusercontent.com/Josh-SolisF/Proyecto1ThreadCity/main/Threads%20and%20Schedules
 
