@@ -65,4 +65,15 @@ Compilado para arquitectura **x86-64 Linux**
 ### Control de versiones:
 **Proyecto1ThreadCity**, link al repositorio para el control de versiones:  
 [https://github.com/Josh-SolisF/Proyecto1ThreadCity.git](https://github.com/Josh-SolisF/Proyecto1Thread
+## UML Threads and Schedules
+![alt text](https://github.com/Josh-SolisF/Proyecto1ThreadCity/blob/main/Threads_and_Schedules.png?raw=true)
+Descripción del UML:
+El diagrama muestra una interfaz llamada MyPethread que expone operaciones para el ciclo de vida de hilos (por ejemplo, my_thread_create, join, yield). Los struct (como ThreadState) modelan el estado operativo del hilo (identificador, estado, prioridad, puntero de pila). Las clases concretas implementan MyPethread y colaboran con MyMutex, una clase de sincronización que ofrece lock()/unlock() para garantizar exclusión mutua. Las dependencias indican que los métodos que gestionan colas, planificadores o recursos compartidos siempre se ejecutan bajo MyMutex, evitando condiciones de carrera.
+
+## UML ThreadsCity
+![alt text](https://github.com/Josh-SolisF/Proyecto1ThreadCity/blob/main/Thread_City.png?raw=true)
+
+
+El diagrama modela una arquitectura orientada a objetos para una simulación urbana. La clase base Block define atributos de posición y un identificador único, mientras que CityBlock hereda de ella y sirve como punto común para tipos especializados como Water, Dock, Bridge y NuclearPlant, que representan diferentes elementos de la ciudad. La clase Map organiza y relaciona los bloques, permitiendo su disposición lógica. Por otro lado, Vehicle abstrae entidades móviles con propiedades como ubicación, velocidad y dirección, y se extiende en clases concretas como Car, Ambulance y Ship, cada una con comportamientos específicos. El diseño muestra cómo los objetos colaboran: los vehículos interactúan con bloques y mapas.
+
 
