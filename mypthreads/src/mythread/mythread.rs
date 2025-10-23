@@ -9,6 +9,7 @@ pub struct MyThread {
     pub state: ThreadState,
     // Placeholder: más adelante guardar la función a ejecutar:
     pub entry: Option<fn()>, // por ahora, función simple para no complicar
+    pub joinable: bool
 }
 
 impl MyThread {
@@ -18,6 +19,7 @@ impl MyThread {
             name: name.to_string(),
             state: ThreadState::New,
             entry,
+            joinable: true,
         }
     }
 }

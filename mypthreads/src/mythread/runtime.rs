@@ -5,8 +5,12 @@ use crate::mythread::thread_state::ThreadState;
 
 pub struct ThreadRuntime {
     threads: HashMap<ThreadId, MyThread>,
-    run_queue: VecDeque<ThreadId>,
+    pub(crate) run_queue: VecDeque<ThreadId>,
     next_id: ThreadId,
+    current: Option<ThreadId>,
+
+    wait_on: HashMap<ThreadId, Vec<ThreadId>>, // target -> waiters
+
 }
 
 impl ThreadRuntime {
@@ -15,6 +19,9 @@ impl ThreadRuntime {
             threads: HashMap::new(),
             run_queue: VecDeque::new(),
             next_id: 1,
+            current: None,
+            wait_on: HashMap::new(),
+
         }
     }
 
@@ -48,7 +55,7 @@ impl ThreadRuntime {
         self.threads.get(&tid).map(|t| t.state)
     }
 
-    /// Reencola un hilo (p. ej. tras yield).
+    /// Reencola un hilo.
     pub fn enqueue(&mut self, tid: ThreadId) {
         // Solo encolamos si no está Terminated.
         if matches!(self.get_state(tid), Some(ThreadState::Ready | ThreadState::Running | ThreadState::Blocked | ThreadState::New)) {
@@ -56,8 +63,51 @@ impl ThreadRuntime {
         }
     }
 
-    /// Acceso de depuración opcional.
-    pub fn len(&self) -> usize {
-        self.threads.len()
+
+    /// Ejecuta un “paso” cooperativo: elige, marca Running y fija `current`.
+    /// El código de hilo (o tests) deberían llamar luego a `yield/end`.
+    pub fn run_once(&mut self) -> Option<ThreadId> {
+        let next = self.schedule_next()?;
+        self.set_state(next, ThreadState::Running);
+        self.current = Some(next);
+        Some(next)
     }
+
+    /// Útil cuando el hilo hace yield/end: limpiamos `current`.
+    pub fn clear_current(&mut self) {
+        self.current = None;
+    }
+
+    pub fn current(&self) -> Option<ThreadId> {
+        self.current
+    }
+
+
+
+    pub fn mark_blocked_on(&mut self, waiter: ThreadId, target: ThreadId) {
+        self.set_state(waiter, ThreadState::Blocked);
+        self.wait_on.entry(target).or_default().push(waiter);
+
+    }
+
+    pub fn on_terminated(&mut self, target: ThreadId) {
+        if let Some(waiters) = self.wait_on.remove(&target) {
+            for w in waiters {
+                self.set_state(w, ThreadState::Ready);
+                self.enqueue(w);
+            }
+        }
+    }
+
+    pub fn set_joinable(&mut self, tid: ThreadId, joinable: bool) {
+        if let Some(th) = self.threads.get_mut(&tid) {
+            th.joinable = joinable;
+        }
+    }
+
+    pub fn is_joinable(&self, tid: ThreadId) -> Option<bool> {
+        self.threads.get(&tid).map(|t| t.joinable)
+    }
+
+
 }
