@@ -1,19 +1,19 @@
-// src/mythread/runtime.rs
 use std::collections::{HashMap, VecDeque};
-use crate::mythread::mythread::{MyThread, ThreadId};
+use std::os::raw::c_int;
+use crate::mythread::mythread::{AnyParam, MyTRoutine, MyThread, ThreadId};
+use crate::mythread::mythreadattr::MyThreadAttr;
 use crate::mythread::thread_state::ThreadState;
 
-pub struct ThreadRuntime {
-    threads: HashMap<ThreadId, MyThread>,
+pub struct MyTRuntime {
     pub(crate) run_queue: VecDeque<ThreadId>,
+    threads: HashMap<ThreadId, MyThread>,
     next_id: ThreadId,
     current: Option<ThreadId>,
-
     wait_on: HashMap<ThreadId, Vec<ThreadId>>, // target -> waiters
 
 }
 
-impl ThreadRuntime {
+impl MyTRuntime {
     pub fn new() -> Self {
         Self {
             threads: HashMap::new(),
@@ -21,21 +21,30 @@ impl ThreadRuntime {
             next_id: 1,
             current: None,
             wait_on: HashMap::new(),
-
         }
     }
 
-    /// Crea un hilo en estado New, lo pasa a Ready y lo encola.
-    pub fn spawn(&mut self, name: &str, entry: Option<fn()>) -> ThreadId {
+    /// Crea un hilo en estado Ready y lo encola.
+    pub fn create(&mut self,
+                  thread_out: *mut ThreadId,
+                  attr: MyThreadAttr,
+                  start_routine: MyTRoutine,
+                  args: *mut AnyParam,
+    ) -> c_int {
         let id = self.next_id;
         self.next_id += 1;
 
-        let mut th = MyThread::new(id, name, entry);
-        th.state = ThreadState::Ready; // pasa a listo para correr
+        let new_thread = MyThread::new(id, attr, start_routine, args);
 
-        self.threads.insert(id, th);
+        self.threads.insert(id, new_thread);
         self.run_queue.push_back(id);
-        id
+
+        unsafe {
+            *thread_out = id;
+        }
+
+        self.set_state(id, ThreadState::Ready);
+        0 // Exito en C
     }
 
     /// Selecciona el siguiente hilo en la cola (Round Robin básico).
@@ -58,7 +67,7 @@ impl ThreadRuntime {
     /// Reencola un hilo.
     pub fn enqueue(&mut self, tid: ThreadId) {
         // Solo encolamos si no está Terminated.
-        if matches!(self.get_state(tid), Some(ThreadState::Ready | ThreadState::Running | ThreadState::Blocked | ThreadState::New)) {
+        if matches!(self.get_state(tid), Some(ThreadState::Ready | ThreadState::Running | ThreadState::Blocked)) {
             self.run_queue.push_back(tid);
         }
     }
@@ -66,7 +75,7 @@ impl ThreadRuntime {
 
     /// Ejecuta un “paso” cooperativo: elige, marca Running y fija `current`.
     /// El código de hilo (o tests) deberían llamar luego a `yield/end`.
-    pub fn run_once(&mut self) -> Option<ThreadId> {
+    pub fn step(&mut self) -> Option<ThreadId> {
         let next = self.schedule_next()?;
         self.set_state(next, ThreadState::Running);
         self.current = Some(next);
@@ -78,7 +87,7 @@ impl ThreadRuntime {
         self.current = None;
     }
 
-    pub fn current(&self) -> Option<ThreadId> {
+    pub fn get_current(&self) -> Option<ThreadId> {
         self.current
     }
 
@@ -109,5 +118,14 @@ impl ThreadRuntime {
         self.threads.get(&tid).map(|t| t.joinable)
     }
 
-
+    pub fn join(&mut self, tid: ThreadId, ret_val: *mut *mut AnyParam) -> c_int {
+        if let Some(th) = self.threads.get_mut(&tid) {
+            th.run();
+            if !ret_val.is_null() {
+                unsafe { *ret_val = th.ret_val }
+            }
+            return 0;
+        }
+        -1 // No existe el thread con dicho id
+    }
 }
