@@ -70,23 +70,33 @@ pub unsafe extern "C" fn my_thread_join(
     runtime.as_mut().unwrap().join(thread, ret_val)
 }
 
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn my_thread_yield_to(tid: ThreadId) -> c_int {
+    let runtime = RUNTIME.get_mut();
+    if let Some(rt) = runtime.as_mut() {
+        rt.yield_thread(tid)
+    } else {
+        -1
+    }
+}
+
+#[unsafe(no_mangle)]
+
+pub unsafe extern "C" fn my_thread_end(retval: *mut AnyParam) -> c_int {
+    let runtime = RUNTIME.get_mut();
+    if let Some(rt) = runtime.as_mut() {
+        rt.end_current(retval)
+    } else {
+        // Si aún no hay runtime inicializado, no hay nada que terminar.
+        // Puedes devolver -1 para señalar error.
+        -1
+    }
+}
+
+
 /*
-
-pub fn my_thread_join(
-    rt: &mut MyTRuntime,
-    current: ThreadId,
-    target: ThreadId,
-) -> Result<(), JoinError> {
-    if current == target {
-        return Err(JoinError::SelfJoin);
-    }
-    let target_state = rt.get_state(target).ok_or(JoinError::NoSuchThread)?;
-    let joinable = rt.is_joinable(target).ok_or(JoinError::NoSuchThread)?;
-    if !joinable {
-        return Err(JoinError::NotJoinable);
-    }
-
-    // Si ya terminó, retorno inmediato: no bloqueamos.
+  etorno inmediato: no bloqueamos.
     if target_state == ThreadState::Terminated {
         return Ok(());
     }

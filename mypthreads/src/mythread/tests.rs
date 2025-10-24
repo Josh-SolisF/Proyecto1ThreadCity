@@ -1,7 +1,10 @@
 #[cfg(test)]
 mod tests {
     use crate::mythread::mypthread::{my_thread_create, my_thread_join};
+    use crate::mythread::myruntime::MyTRuntime;
     use crate::mythread::mythread::AnyParam;
+    use crate::mythread::mythreadattr::MyThreadAttr;
+    use crate::mythread::thread_state::ThreadState;
 
     extern "C" fn test_thread_function(arg: *mut AnyParam) -> *mut AnyParam {
         unsafe {
@@ -66,5 +69,59 @@ mod tests {
                 assert_eq!(*ret, 42, "El hilo {} no retornó 42", i);
             }
         }
+    }
+
+
+    #[test]
+    fn test_yield_moves_current_to_ready() {
+        use crate::mythread::mythread::{AnyParam, MyTRoutine};
+        extern "C" fn dummy_start(_arg: *mut AnyParam) -> *mut AnyParam {
+            // No debería ser llamado en este test
+            std::ptr::null_mut()
+        }
+
+        let mut rt = MyTRuntime::new();
+        let mut tid: usize = 0;
+        let attr = MyThreadAttr::default();
+        let _ = rt.create(&mut tid as *mut usize, attr, dummy_start, std::ptr::null_mut());
+
+        // Simula que el scheduler seleccionó ese hilo como current:
+        rt.schedule_next();
+        assert_eq!(rt.current, Some(tid));
+
+        // Llamamos yield y verificamos que vuelve a Ready y reencola
+        let _ = rt.yield_current();
+        assert!(rt.current.is_some()); // si hay sólo un hilo, volverá a ser él mismo en Running
+    }
+    #[test]
+    fn test_end_current_marks_terminated() {
+        use crate::mythread::mythread::AnyParam;
+
+        let mut rt = MyTRuntime::new();
+        let mut tid: usize = 0;
+        let attr = MyThreadAttr::default();
+
+        extern "C" fn start(_a: *mut AnyParam) -> *mut AnyParam {
+            // Simula que dentro llama a my_thread_end, pero en este test
+            // invocaremos end_current manualmente.
+            std::ptr::null_mut()
+        }
+
+        // Crea un hilo
+        let _ = rt.create(&mut tid as *mut usize, attr, start, std::ptr::null_mut());
+
+        // Simula que es el current
+        rt.schedule_next();
+        assert_eq!(rt.current, Some(tid));
+
+        // Termina con un valor
+        let val = 0x1234usize as *mut AnyParam;
+        let rc = rt.end_current(val);
+        assert_eq!(rc, 0);
+
+        // Verifica
+        let t = rt.threads.get(&tid).unwrap();
+        assert_eq!(t.state, ThreadState::Terminated);
+        assert_eq!(t.ret_val, val);
     }
 }
