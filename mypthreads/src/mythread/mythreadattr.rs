@@ -5,6 +5,7 @@ pub struct MyThreadAttr {
     pub priority: u8,
     pub stack_size: usize,
     pub detached: bool,
+    pub joinable: bool,
 }
 
 impl Default for MyThreadAttr {
@@ -13,6 +14,7 @@ impl Default for MyThreadAttr {
             scheduler: 0,
             priority: 0,
             stack_size: 0,
+            joinable: false,
             detached: false,
         }
     }

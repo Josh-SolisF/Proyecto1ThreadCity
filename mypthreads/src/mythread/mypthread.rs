@@ -12,18 +12,17 @@ pub struct MyGlobalRuntime {
 unsafe impl Sync for MyGlobalRuntime {
 }
 
+
 impl MyGlobalRuntime {
-    const fn new() -> Self {
-        Self {
-            inner: UnsafeCell::new(None),
-        }
+    pub const fn new() -> Self {
+        Self { inner: UnsafeCell::new(None) }
     }
-    const unsafe fn get_mut(&self) -> &mut Option<MyTRuntime> {
-        unsafe {
-            &mut *self.inner.get()
-        }
+    pub fn get_mut(&self) -> &mut Option<MyTRuntime> {
+        // encapsulamos el unsafe aquí
+        unsafe { &mut *self.inner.get() }
     }
 }
+
 
 static RUNTIME: MyGlobalRuntime = MyGlobalRuntime::new();
 
@@ -37,33 +36,40 @@ static RUNTIME: MyGlobalRuntime = MyGlobalRuntime::new();
 ///
 /// # Returns
 /// `0` de c_int
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn my_thread_create(
     thread: *mut ThreadId,
-    _attr: *const AnyParam,
+    attr_ptr: *const MyThreadAttr,
     start_routine: MyTRoutine,
     arg: *mut AnyParam,
 ) -> c_int {
-    unsafe {
     let runtime = RUNTIME.get_mut();
     if runtime.is_none() {
         *runtime = Some(MyTRuntime::new());
     }
-        let attr = *(_attr as *const MyThreadAttr);
-runtime.as_mut().unwrap().create(thread, attr, start_routine, arg)
-    }
+
+    let attr = if attr_ptr.is_null() {
+        MyThreadAttr::default()
+    } else {
+        *attr_ptr
+    };
+
+    runtime.as_mut().unwrap().create(thread, attr, start_routine, arg)
 }
+
+
+
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn my_thread_join(
     thread: ThreadId,
     ret_val: *mut *mut AnyParam,
 ) -> c_int {
-    unsafe {
-        let runtime = RUNTIME.get_mut();
-        runtime.as_mut().unwrap().join(thread, ret_val)
-    }
+    let runtime = RUNTIME.get_mut();
+    runtime.as_mut().unwrap().join(thread, ret_val)
 }
+
 /*
 
 pub fn my_thread_join(

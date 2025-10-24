@@ -6,9 +6,10 @@ use crate::mythread::thread_state::ThreadState;
 
 pub type ThreadId = usize;
 pub type AnyParam = c_void;
-pub type MyTRoutine = extern "C" fn(*mut AnyParam) -> *mut AnyParam;
+pub type MyTRoutine =  extern "C" fn(*mut AnyParam) -> *mut AnyParam;
 
 pub struct MyThread {
+
     pub(crate) id: ThreadId,
     pub(crate) state: ThreadState,
     pub(crate) attr: MyThreadAttr,
@@ -27,11 +28,14 @@ impl MyThread {
             start_routine: routine,
             arg,
             ret_val: std::ptr::null_mut(),
-            joinable: false,
+            joinable: true,
         }
     }
+
     pub fn run(&mut self) {
         let result = (self.start_routine)(self.arg);
         self.ret_val = result;
+        self.state = ThreadState::Terminated;
     }
+
 }

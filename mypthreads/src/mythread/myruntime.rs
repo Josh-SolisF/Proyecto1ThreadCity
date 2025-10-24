@@ -34,16 +34,18 @@ impl MyTRuntime {
         let id = self.next_id;
         self.next_id += 1;
 
-        let new_thread = MyThread::new(id, attr, start_routine, args);
+
+        let mut new_thread = MyThread::new(id, attr, start_routine, args);
+        new_thread.state = ThreadState::Ready;
+
 
         self.threads.insert(id, new_thread);
         self.run_queue.push_back(id);
 
-        unsafe {
-            *thread_out = id;
+        if !thread_out.is_null() {
+            unsafe { *thread_out = id; }
         }
 
-        self.set_state(id, ThreadState::Ready);
         0 // Exito en C
     }
 
@@ -54,8 +56,8 @@ impl MyTRuntime {
 
     /// Cambia el estado del hilo si existe.
     pub fn set_state(&mut self, tid: ThreadId, st: ThreadState) {
-        if let Some(th) = self.threads.get_mut(&tid) {
-            th.state = st;
+        if let Some(t) = self.threads.get_mut(&tid) {
+            t.state = st;
         }
     }
 
@@ -118,14 +120,20 @@ impl MyTRuntime {
         self.threads.get(&tid).map(|t| t.joinable)
     }
 
+
+
     pub fn join(&mut self, tid: ThreadId, ret_val: *mut *mut AnyParam) -> c_int {
         if let Some(th) = self.threads.get_mut(&tid) {
-            th.run();
+            // Ejecuta una sola vez
+            if th.state != ThreadState::Terminated {
+                th.run();
+            }
             if !ret_val.is_null() {
                 unsafe { *ret_val = th.ret_val }
             }
             return 0;
         }
-        -1 // No existe el thread con dicho id
+        -1 // No existe el thread
     }
+
 }
