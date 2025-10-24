@@ -3,7 +3,7 @@ use std::cell::UnsafeCell;
 use crate::mythread::mymutex::MyMutex;
 use crate::mythread::myruntime::MyTRuntime;
 use crate::mythread::mythread::{AnyParam, MyTRoutine, ThreadId};
-use crate::mythread::mythreadattr::MyThreadAttr;
+use crate::mythread::mythreadattr::{myAttr, MyThreadAttr};
 use crate::mythread::thread_state::ThreadState;
 
 pub struct MyGlobalRuntime {
@@ -40,7 +40,7 @@ static RUNTIME: MyGlobalRuntime = MyGlobalRuntime::new();
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn my_thread_create(
     thread: *mut ThreadId,
-    attr_ptr: *const MyThreadAttr,
+    attr: *const myAttr,
     start_routine: MyTRoutine,
     arg: *mut AnyParam,
 ) -> c_int {
@@ -48,14 +48,15 @@ pub unsafe extern "C" fn my_thread_create(
     if runtime.is_none() {
         *runtime = Some(MyTRuntime::new());
     }
-
-    let attr = if attr_ptr.is_null() {
-        MyThreadAttr::default()
+    let rt = runtime.as_mut().unwrap();
+    let attr_ref: *const myAttr = if attr.is_null() {
+        let default_attr = MyThreadAttr::new();
+        default_attr.as_ptr()
     } else {
-        *attr_ptr
+        attr
     };
 
-    runtime.as_mut().unwrap().create(thread, attr, start_routine, arg)
+    rt.create(thread, attr_ref, start_routine, arg)
 }
 
 

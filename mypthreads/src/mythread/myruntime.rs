@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::os::raw::c_int;
 use crate::mythread::mythread::{AnyParam, MyTRoutine, MyThread, ThreadId};
-use crate::mythread::mythreadattr::MyThreadAttr;
+use crate::mythread::mythreadattr::{myAttr, MyThreadAttr};
 use crate::mythread::thread_state::ThreadState;
 
 pub struct MyTRuntime {
@@ -27,7 +27,7 @@ impl MyTRuntime {
     /// Crea un hilo en estado Ready y lo encola.
     pub fn create(&mut self,
                   thread_out: *mut ThreadId,
-                  attr: MyThreadAttr,
+                  attr: *const myAttr,
                   start_routine: MyTRoutine,
                   args: *mut AnyParam,
     ) -> c_int {

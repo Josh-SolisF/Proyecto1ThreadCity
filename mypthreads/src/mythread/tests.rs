@@ -1,41 +1,19 @@
 #[cfg(test)]
 mod tests {
+    use std::process::id;
     use crate::mythread::mypthread::{my_thread_create, my_thread_join};
     use crate::mythread::myruntime::MyTRuntime;
-    use crate::mythread::mythread::AnyParam;
+    use crate::mythread::mythread::{AnyParam, ThreadId};
     use crate::mythread::mythreadattr::MyThreadAttr;
     use crate::mythread::thread_state::ThreadState;
+    use libc::{pthread_create, pthread_join, pthread_t, c_void};
+    use std::ptr;
 
     extern "C" fn test_thread_function(arg: *mut AnyParam) -> *mut AnyParam {
         unsafe {
             let value = arg as *mut i32;
             *value += 10;
             value as *mut AnyParam
-        }
-    }
-
-    #[test]
-    fn test_pthread_basic_create_and_join() {
-        unsafe {
-            let mut thread_id: usize = 0;
-            let mut value: i32 = 5;
-            let mut retval: *mut AnyParam = std::ptr::null_mut();
-
-            let result_create = my_thread_create(
-                &mut thread_id as *mut usize,
-                std::ptr::null(), // sin atributos
-                test_thread_function,
-                &mut value as *mut i32 as *mut AnyParam,
-            );
-            assert_eq!(result_create, 0, "my_thread_create falló");
-
-            let result_join = my_thread_join(thread_id, &mut retval as *mut *mut AnyParam);
-            assert_eq!(result_join, 0, "pthread_join falló");
-
-            let returned = retval as *mut i32;
-            assert!(!returned.is_null(), "El puntero de retorno es nulo");
-
-            assert_eq!(*returned, 15, "El valor retornado no coincide (esperado 15)");
         }
     }
 
@@ -46,22 +24,89 @@ mod tests {
     }
 
     #[test]
+    fn test_create_and_join_thread() {
+        unsafe {
+            let mut my_attr = MyThreadAttr::new();
+            my_attr.set_stack_size(64 * 1024);
+            my_attr.set_detached(false);
+            // -----------------------
+            // Caso 1: my_thread_create
+            // -----------------------
+            let mut tid: ThreadId = 0;
+            let mut value_my: i32 = 5;
+            let mut retval_my: *mut AnyParam = ptr::null_mut();
+
+            let result_create_my = my_thread_create(
+                &mut tid,
+                my_attr.as_ptr(),
+                test_thread_function,
+                &mut value_my as *mut i32 as *mut AnyParam,
+            );
+            assert_eq!(result_create_my, 0, "my_thread_create falló");
+
+            let result_join_my = my_thread_join(tid, &mut retval_my as *mut *mut AnyParam);
+            assert_eq!(result_join_my, 0, "my_thread_join falló");
+
+            let returned_my = retval_my as *mut i32;
+
+            // -----------------------
+            // Caso 2: pthread_create
+            // -----------------------
+            let mut value_p: i32 = 5;
+            let mut retval_p: *mut AnyParam = ptr::null_mut();
+
+            // pthread_create usa firma: pthread_create(&mut pthread_t, attr, fn(*mut c_void) -> *mut c_void, arg)
+            let result_create_p = pthread_create(
+                &mut tid,
+                my_attr.as_ptr(),
+                test_thread_function,
+                &mut value_p as *mut i32 as *mut AnyParam,
+            );
+            assert_eq!(result_create_p, 0, "pthread_create falló");
+
+            let result_join_p = pthread_join(tid, &mut retval_p as *mut *mut AnyParam);
+            assert_eq!(result_join_p, 0, "pthread_join falló");
+
+            let returned_p = retval_p as *mut i32;
+
+            // -----------------------
+            // Comparación entre ambas
+            // -----------------------
+            assert!(!returned_my.is_null(), "El puntero retornado (my_thread_create) es nulo");
+            assert_eq!(*returned_my, 15, "Valor incorrecto en my_thread_create (esperado 15)");
+            println!("✅ Mypthread funciona correctamente y retorna el valor esperado 15 = {}", *returned_my);
+
+            assert!(!returned_p.is_null(), "El puntero retornado (pthread_create) es nulo");
+            assert_eq!(*returned_p, 15, "Valor incorrecto en pthread_create (esperado 15)");
+            println!("✅ Pthread acepta correctamente los parametros usados y attr nulos, retorna el valor esperado 15 = {}", *returned_my);
+
+            assert_eq!(
+                *returned_my, *returned_p,
+                "Los resultados entre my_thread_create y pthread_create no coinciden"
+            );
+
+            println!("✅ Ambas implementaciones se comportan de la misma manera.");
+        }
+    }
+
+    #[test]
     fn test_multiple_threads() {
         unsafe {
-            let mut ids = [0usize; 3];
-            let mut results = [std::ptr::null_mut(); 3];
+            const IDS_SIZE: usize = 3;
+            let mut ids: [ThreadId; IDS_SIZE] = [1; IDS_SIZE];
+            let mut results = [ptr::null_mut(); 3];
 
-            for i in 0..3 {
+            for i in 0..IDS_SIZE {
                 let res = my_thread_create(
-                    &mut ids[i] as *mut usize,
-                    std::ptr::null(),
+                    &mut ids[i],
+                    ptr::null(),
                     test_thread_returns_static,
-                    std::ptr::null_mut(),
+                    ptr::null_mut(),
                 );
                 assert_eq!(res, 0, "my_thread_create falló para hilo {}", i);
             }
 
-            for i in 0..3 {
+            for i in 0..IDS_SIZE {
                 let res = my_thread_join(ids[i], &mut results[i] as *mut *mut AnyParam);
                 assert_eq!(res, 0, "pthread_join falló para hilo {}", i);
 
@@ -77,13 +122,13 @@ mod tests {
         use crate::mythread::mythread::{AnyParam, MyTRoutine};
         extern "C" fn dummy_start(_arg: *mut AnyParam) -> *mut AnyParam {
             // No debería ser llamado en este test
-            std::ptr::null_mut()
+            ptr::null_mut()
         }
 
         let mut rt = MyTRuntime::new();
-        let mut tid: usize = 0;
-        let attr = MyThreadAttr::default();
-        let _ = rt.create(&mut tid as *mut usize, attr, dummy_start, std::ptr::null_mut());
+        let mut tid: ThreadId = 0;
+        let attr = MyThreadAttr::new();
+        let _ = rt.create(&mut tid, attr.as_ptr(), dummy_start, ptr::null_mut());
 
         // Simula que el scheduler seleccionó ese hilo como current:
         rt.schedule_next();
@@ -98,17 +143,17 @@ mod tests {
         use crate::mythread::mythread::AnyParam;
 
         let mut rt = MyTRuntime::new();
-        let mut tid: usize = 0;
-        let attr = MyThreadAttr::default();
+        let mut tid: ThreadId = 0;
+        let attr = MyThreadAttr::new();
 
         extern "C" fn start(_a: *mut AnyParam) -> *mut AnyParam {
             // Simula que dentro llama a my_thread_end, pero en este test
             // invocaremos end_current manualmente.
-            std::ptr::null_mut()
+            ptr::null_mut()
         }
 
         // Crea un hilo
-        let _ = rt.create(&mut tid as *mut usize, attr, start, std::ptr::null_mut());
+        let _ = rt.create(&mut tid, attr.as_ptr(), start, ptr::null_mut());
 
         // Simula que es el current
         rt.schedule_next();
