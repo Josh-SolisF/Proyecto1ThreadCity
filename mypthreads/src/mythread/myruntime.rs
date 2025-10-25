@@ -23,7 +23,6 @@ impl MyTRuntime {
             wait_on: HashMap::new(),
         }
     }
-
     /// Crea un hilo en estado Ready y lo encola.
     pub fn create(&mut self,
                   thread_out: *mut ThreadId,
@@ -33,6 +32,14 @@ impl MyTRuntime {
     ) -> c_int {
         let id = self.next_id;
         self.next_id += 1;
+
+
+        // Copiar por valor; si es NULL, usar default.
+        let attr_val: MyAttr = if attr.is_null() {
+            MyAttr::default()
+        } else {
+            unsafe { *attr }
+        };
 
 
         let mut new_thread = MyThread::new(id, attr, start_routine, args);
@@ -59,8 +66,30 @@ impl MyTRuntime {
             if let Some(th) = self.threads.get_mut(&next) {
                 if th.state != ThreadState::Terminated {
                     th.state = ThreadState::Running;
+                    th.run(); // corre hasta terminar
+
                 }
             }
+
+            // Despertar joiners si terminó
+            if let Some(th) = self.threads.get(&next) {
+                if th.state == ThreadState::Terminated {
+                    if let Some(waiters) = self.wait_on.remove(&next) {
+                        for w in waiters {
+                            if let Some(tw) = self.threads.get_mut(&w) {
+                                if tw.state == ThreadState::Blocked {
+                                    tw.state = ThreadState::Ready;
+                                    self.run_queue.push_back(w);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            self.current = None;
+
+
         } else {
             // No hay hilos listos; queda sin current
             self.current = None;
@@ -68,6 +97,11 @@ impl MyTRuntime {
     }
 
 
+    pub fn run_until_idle(&mut self) {
+        while !self.run_queue.is_empty() {
+            self.schedule_next();
+        }
+    }
     /// Cambia el estado del hilo si existe.
     pub fn set_state(&mut self, tid: ThreadId, st: ThreadState) {
         if let Some(t) = self.threads.get_mut(&tid) {
@@ -75,7 +109,7 @@ impl MyTRuntime {
         }
     }
 
-
+/*
     /// Marca al hilo actual como Ready, lo reencola y limpia current.
     /// Luego intenta seleccionar el siguiente (no ejecuta la rutina aquí).
     pub fn yield_current(&mut self) -> c_int {
@@ -94,7 +128,7 @@ impl MyTRuntime {
         self.schedule_next();
         0
     }
-
+*/
     /// Variante que recibe un TID explícito. Si coincide con el current, hace yield.
     /// Si no coincide, intenta mover ese TID a Ready (si existe) y reencolarlo.
     pub fn yield_thread(&mut self, tid: ThreadId) -> c_int {
@@ -113,7 +147,11 @@ impl MyTRuntime {
             }
         }
     }
-
+    /// MVP: sin cambio de contexto real, yield no puede ceder la CPU.
+    /// Se deja como NOP para mantener la API estable.
+    pub fn yield_current(&mut self) -> c_int {
+        0
+    }
 
     /// Devuelve el estado actual (útil para tests).
     pub fn get_state(&self, tid: ThreadId) -> Option<ThreadState> {
@@ -204,18 +242,53 @@ impl MyTRuntime {
         }
     }
 
-    pub fn join(&mut self, tid: ThreadId, ret_val: *mut *mut AnyParam) -> c_int {
-        if let Some(th) = self.threads.get_mut(&tid) {
-            // Ejecuta una sola vez
-            if th.state != ThreadState::Terminated {
-                th.run();
+
+        pub fn join(&mut self, target: ThreadId, out_ret: *mut *mut AnyParam) -> c_int {
+            if !self.threads.contains_key(&target) {
+                return -1; // ESRCH lógico
             }
-            if !ret_val.is_null() {
-                unsafe { *ret_val = th.ret_val }
+
+            // Comportamiento pthread-like:
+            // - si detached => error (opcional: valida con self.threads[target].attr.detached)
+            // - si self-join => error
+            if let Some(cur) = self.current {
+                if cur == target {
+                    return -1; // EDEADLK
+                }
             }
-            return 0;
+
+            loop {
+                // ¿Terminó ya?
+                let (terminated, retval, detached) = {
+                    let t = self.threads.get(&target).unwrap();
+                    (t.state == ThreadState::Terminated, t.ret_val, t.attr.detached)
+                };
+
+                if detached {
+                    return -1; // EINVAL (no joinable)
+                }
+
+                if terminated {
+                    if !out_ret.is_null() {
+                        unsafe { *out_ret = retval; }
+                    }
+                    return 0;
+                }
+
+                // Bloquear al current (si hay) y dejar avanzar el scheduler
+                if let Some(cur) = self.current {
+                    self.set_state(cur, ThreadState::Blocked);
+                    self.wait_on.entry(target).or_default().push(cur);
+                    self.current = None;
+                }
+
+                if self.run_queue.is_empty() {
+                    // No hay nada para correr pero el target no terminó -> deadlock lógico en MVP
+                    return -1;
+                }
+
+                self.schedule_next();
+            }
         }
-        -1 // No existe el thread
     }
 
-}

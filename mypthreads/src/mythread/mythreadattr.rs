@@ -1,3 +1,4 @@
+/*
 use libc::{
     pthread_attr_t,
     pthread_attr_init,
@@ -7,31 +8,42 @@ use libc::{
     PTHREAD_CREATE_DETACHED,
     PTHREAD_CREATE_JOINABLE,
 };
+*/
 
-pub type MyAttr = pthread_attr_t;
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct MyAttr {
+    pub detached: bool,
+    pub stack_size: usize,
+}
+
+impl Default for MyAttr {
+    fn default() -> Self {
+        Self { detached: false, stack_size: 0 }
+    }
+}
 
 #[repr(transparent)]
 pub struct MyThreadAttr {
     inner: MyAttr,
 }
 
+
 impl MyThreadAttr {
     pub fn new() -> Self {
-        unsafe {
-            let mut attr: MyAttr = std::mem::zeroed();
-            pthread_attr_init(&mut attr);
-            Self { inner: attr }
-        }
+        Self { inner: MyAttr::default() }
     }
+    pub fn set_detached(&mut self, detached: bool) { self.inner.detached = detached; }
+    pub fn set_stack_size(&mut self, size: usize) { self.inner.stack_size = size; }
 
-    /// Configura el modo detached o joinable
-    pub fn set_detached(&mut self, detached: bool) {
-        let state = if detached { PTHREAD_CREATE_DETACHED } else { PTHREAD_CREATE_JOINABLE };
-        unsafe {
-            pthread_attr_setdetachstate(&mut self.inner,state);
-        }
-    }
+    /// Para mypthread que esperan puntero (p. ej. my_thread_create acepta *const MyAttr).
+    pub fn as_ptr(&self) -> *const MyAttr { &self.inner }
 
+    /// Para copiar el valor dentro de create().
+    pub fn into_value(self) -> MyAttr { self.inner }
+}
+
+/*
     /// Configura el tamaño de la pila
     pub fn set_stack_size(&mut self, size: usize) {
         unsafe {
@@ -51,4 +63,7 @@ impl Drop for MyThreadAttr {
             pthread_attr_destroy(&mut self.inner);
         }
     }
+
+
 }
+*/

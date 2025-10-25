@@ -12,7 +12,7 @@ pub struct MyGlobalRuntime {
 unsafe impl Sync for MyGlobalRuntime {
 }
 
-
+/*
 impl MyGlobalRuntime {
     pub const fn new() -> Self {
         Self { inner: UnsafeCell::new(None) }
@@ -22,9 +22,22 @@ impl MyGlobalRuntime {
         unsafe { &mut *self.inner.get() }
     }
 }
+*/
+
+
+impl MyGlobalRuntime {
+    pub const fn new() -> Self { Self { inner: UnsafeCell::new(None) } }
+    pub fn get_mut(&self) -> &mut Option<MyTRuntime> { unsafe { &mut *self.inner.get() } }
+}
 
 
 static RUNTIME: MyGlobalRuntime = MyGlobalRuntime::new();
+
+fn ensure_runtime<'a>() -> &'a mut MyTRuntime {
+    let r = RUNTIME.get_mut();
+    if r.is_none() { *r = Some(MyTRuntime::new()); }
+    r.as_mut().unwrap()
+}
 
 /// Crea un hilo del mismo modo que lo haría la biblioteca pthread
 ///
@@ -44,14 +57,11 @@ pub unsafe extern "C" fn my_thread_create(
     start_routine: MyTRoutine,
     arg: *mut AnyParam,
 ) -> c_int {
-    let runtime = RUNTIME.get_mut();
-    if runtime.is_none() {
-        *runtime = Some(MyTRuntime::new());
-    }
-    let rt = runtime.as_mut().unwrap();
+
+    let rt = ensure_runtime();
+
     let attr_ref: *const MyAttr = if attr.is_null() {
-        let default_attr = MyThreadAttr::new();
-        default_attr.as_ptr()
+        &MyAttr::default()
     } else {
         attr
     };
@@ -67,32 +77,34 @@ pub unsafe extern "C" fn my_thread_join(
     thread: ThreadId,
     ret_val: *mut *mut AnyParam,
 ) -> c_int {
-    let runtime = RUNTIME.get_mut();
-    runtime.as_mut().unwrap().join(thread, ret_val)
+
+    let rt = ensure_runtime();
+    rt.join(thread, ret_val)
+
 }
 
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn my_thread_yield(tid: ThreadId) -> c_int {
-    let runtime = RUNTIME.get_mut();
-    if let Some(rt) = runtime.as_mut() {
-        rt.yield_thread(tid)
-    } else {
-        -1
-    }
+
+    let rt = ensure_runtime();
+    rt.yield_current()
+
 }
 
 #[unsafe(no_mangle)]
 
 pub unsafe extern "C" fn my_thread_end(retval: *mut AnyParam) -> c_int {
-    let runtime = RUNTIME.get_mut();
-    if let Some(rt) = runtime.as_mut() {
-        rt.end_current(retval)
-    } else {
-        // Si aún no hay runtime inicializado, no hay nada que terminar.
-        // Puedes devolver -1 para señalar error.
-        -1
-    }
+    let rt = ensure_runtime();
+    rt.end_current(retval)
+}
+
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn my_thread_run_scheduler() -> c_int {
+    let rt = ensure_runtime();
+    rt.run_until_idle();
+    0
 }
 
 

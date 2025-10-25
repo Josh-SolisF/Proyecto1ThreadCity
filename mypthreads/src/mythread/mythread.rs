@@ -1,16 +1,15 @@
 use std::os::raw::c_void;
-use libc::pthread_t;
 use crate::mythread::mythreadattr::{MyAttr, MyThreadAttr};
 use crate::mythread::thread_state::ThreadState;
 
-pub type ThreadId = pthread_t;
+pub type ThreadId = u64;
 pub type AnyParam = c_void;
 pub type MyTRoutine =  extern "C" fn(*mut AnyParam) -> *mut AnyParam;
 
 pub struct MyThread {
     pub(crate) id: ThreadId,
     pub(crate) state: ThreadState,
-    pub(crate) attr: *const MyAttr,
+    pub(crate) attr:  MyAttr,
     pub(crate) start_routine: MyTRoutine,
     pub(crate) arg: *mut AnyParam,
     pub(crate) ret_val: *mut AnyParam,
@@ -21,7 +20,7 @@ impl MyThread {
         Self {
             id,
             state: ThreadState::New,
-            attr,
+            attr: MyAttr { detached: true, stack_size: 1024 },
             start_routine: routine,
             arg,
             ret_val: std::ptr::null_mut(),
