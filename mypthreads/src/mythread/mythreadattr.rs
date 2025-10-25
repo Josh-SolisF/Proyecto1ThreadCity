@@ -8,17 +8,17 @@ use libc::{
     PTHREAD_CREATE_JOINABLE,
 };
 
-pub type myAttr = pthread_attr_t;
+pub type MyAttr = pthread_attr_t;
 
 #[repr(transparent)]
 pub struct MyThreadAttr {
-    inner: myAttr,
+    inner: MyAttr,
 }
 
 impl MyThreadAttr {
     pub fn new() -> Self {
         unsafe {
-            let mut attr: myAttr = std::mem::zeroed();
+            let mut attr: MyAttr = std::mem::zeroed();
             pthread_attr_init(&mut attr);
             Self { inner: attr }
         }
@@ -40,7 +40,7 @@ impl MyThreadAttr {
     }
 
     /// Devuelve un puntero al pthread_attr_t interno (para pasar a pthread_create)
-    pub fn as_ptr(&self) -> *const myAttr {
+    pub fn as_ptr(&self) -> *const MyAttr {
         &self.inner
     }
 }

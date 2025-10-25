@@ -1,6 +1,6 @@
 use std::os::raw::c_void;
 use libc::pthread_t;
-use crate::mythread::mythreadattr::{myAttr, MyThreadAttr};
+use crate::mythread::mythreadattr::{MyAttr, MyThreadAttr};
 use crate::mythread::thread_state::ThreadState;
 
 pub type ThreadId = pthread_t;
@@ -8,18 +8,16 @@ pub type AnyParam = c_void;
 pub type MyTRoutine =  extern "C" fn(*mut AnyParam) -> *mut AnyParam;
 
 pub struct MyThread {
-
     pub(crate) id: ThreadId,
     pub(crate) state: ThreadState,
-    pub(crate) attr: *const myAttr,
+    pub(crate) attr: *const MyAttr,
     pub(crate) start_routine: MyTRoutine,
     pub(crate) arg: *mut AnyParam,
     pub(crate) ret_val: *mut AnyParam,
-    pub(crate) joinable: bool,
 }
 
 impl MyThread {
-    pub fn new(id: ThreadId, attr: *const myAttr, routine: MyTRoutine, arg: *mut AnyParam) -> Self {
+    pub fn new(id: ThreadId, attr: *const MyAttr, routine: MyTRoutine, arg: *mut AnyParam) -> Self {
         Self {
             id,
             state: ThreadState::New,
@@ -27,7 +25,6 @@ impl MyThread {
             start_routine: routine,
             arg,
             ret_val: std::ptr::null_mut(),
-            joinable: true,
         }
     }
 

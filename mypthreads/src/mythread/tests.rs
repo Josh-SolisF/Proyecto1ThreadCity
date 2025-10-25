@@ -1,12 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use std::process::id;
     use crate::mythread::mypthread::{my_thread_create, my_thread_join};
     use crate::mythread::myruntime::MyTRuntime;
     use crate::mythread::mythread::{AnyParam, ThreadId};
     use crate::mythread::mythreadattr::MyThreadAttr;
     use crate::mythread::thread_state::ThreadState;
-    use libc::{pthread_create, pthread_join, pthread_t, c_void};
+    use libc::{pthread_create, pthread_join};
     use std::ptr;
 
     extern "C" fn test_thread_function(arg: *mut AnyParam) -> *mut AnyParam {
@@ -24,7 +23,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_and_join_thread() {
+    fn test_compare_create_and_join_behaviors_with_pthread() {
         unsafe {
             let mut my_attr = MyThreadAttr::new();
             my_attr.set_stack_size(64 * 1024);
@@ -113,13 +112,13 @@ mod tests {
                 let ret = results[i] as *mut i32;
                 assert_eq!(*ret, 42, "El hilo {} no retornó 42", i);
             }
+            println!("✅ Todos los hilos retornan el valor esperado.");
         }
     }
 
 
     #[test]
     fn test_yield_moves_current_to_ready() {
-        use crate::mythread::mythread::{AnyParam, MyTRoutine};
         extern "C" fn dummy_start(_arg: *mut AnyParam) -> *mut AnyParam {
             // No debería ser llamado en este test
             ptr::null_mut()

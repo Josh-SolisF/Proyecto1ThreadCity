@@ -3,7 +3,7 @@ use std::cell::UnsafeCell;
 use crate::mythread::mymutex::MyMutex;
 use crate::mythread::myruntime::MyTRuntime;
 use crate::mythread::mythread::{AnyParam, MyTRoutine, ThreadId};
-use crate::mythread::mythreadattr::{myAttr, MyThreadAttr};
+use crate::mythread::mythreadattr::{MyAttr, MyThreadAttr};
 use crate::mythread::thread_state::ThreadState;
 
 pub struct MyGlobalRuntime {
@@ -40,7 +40,7 @@ static RUNTIME: MyGlobalRuntime = MyGlobalRuntime::new();
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn my_thread_create(
     thread: *mut ThreadId,
-    attr: *const myAttr,
+    attr: *const MyAttr,
     start_routine: MyTRoutine,
     arg: *mut AnyParam,
 ) -> c_int {
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn my_thread_create(
         *runtime = Some(MyTRuntime::new());
     }
     let rt = runtime.as_mut().unwrap();
-    let attr_ref: *const myAttr = if attr.is_null() {
+    let attr_ref: *const MyAttr = if attr.is_null() {
         let default_attr = MyThreadAttr::new();
         default_attr.as_ptr()
     } else {
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn my_thread_join(
 
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn my_thread_yield_to(tid: ThreadId) -> c_int {
+pub unsafe extern "C" fn my_thread_yield(tid: ThreadId) -> c_int {
     let runtime = RUNTIME.get_mut();
     if let Some(rt) = runtime.as_mut() {
         rt.yield_thread(tid)
