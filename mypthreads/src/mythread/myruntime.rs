@@ -1,33 +1,35 @@
 use std::collections::{HashMap, VecDeque};
 use std::os::raw::c_int;
 use crate::mythread::mythread::{AnyParam, MyTRoutine, MyThread, ThreadId};
-use crate::mythread::mythreadattr::{MyAttr, MyThreadAttr};
+use crate::mythread::mythreadattr::MyThreadAttr;
 use crate::mythread::thread_state::ThreadState;
+use crate::Scheduler;
 
-pub struct MyTRuntime {
+pub(super) struct MyTRuntime<S: Scheduler> {
     pub(crate) run_queue: VecDeque<ThreadId>,
     pub(crate) threads: HashMap<ThreadId, MyThread>,
-    next_id: ThreadId,
+    pub(crate) next_id: ThreadId,
     pub(crate) current: Option<ThreadId>,
-    wait_on: HashMap<ThreadId, Vec<ThreadId>>, // target -> waiters
-
+    pub(crate) wait_on: HashMap<ThreadId, Vec<ThreadId>>, // target -> waiters
+    pub(crate) my_schedulers: Vec<S>,
 }
 
-impl MyTRuntime {
-    pub fn new() -> Self {
+impl<S: Scheduler> MyTRuntime<S> {
+    pub fn new(schedulers: Vec<S>) -> Self {
         Self {
             threads: HashMap::new(),
             run_queue: VecDeque::new(),
-            next_id: 1,
+            next_id: 0,
             current: None,
             wait_on: HashMap::new(),
+            my_schedulers: schedulers
         }
     }
 
     /// Crea un hilo en estado Ready y lo encola.
     pub fn create(&mut self,
                   thread_out: *mut ThreadId,
-                  attr: *const MyAttr,
+                  attr: *mut MyThreadAttr,
                   start_routine: MyTRoutine,
                   args: *mut AnyParam,
     ) -> c_int {
@@ -53,20 +55,32 @@ impl MyTRuntime {
 
     /// Selecciona el siguiente hilo listo y lo marca como Running.
     /// (No invoca la rutina aquí; el baseline ejecuta en join()).
-    pub fn schedule_next(&mut self) {
+    pub fn schedule_next(&mut self) -> c_int {
+        let candidates = self.my_schedulers.iter().map(|sch|
+            sch.schedule(&mut self.run_queue, &mut self.threads)).collect::<Vec<_>>();
+
+        // TODO: Elegir cual candiato es el más apto, de momento solo tomaré el primero del queue y ya
         if let Some(next) = self.run_queue.pop_front() {
             self.current = Some(next);
             if let Some(th) = self.threads.get_mut(&next) {
                 if th.state != ThreadState::Terminated {
                     th.state = ThreadState::Running;
+                    th.run();
                 }
             }
+
+            if let Some(th) = self.threads.get(&next) {
+                if th.state == ThreadState::Terminated {
+                    self.wake_joiners(&next);
+                }
+            }
+            0
+
         } else {
-            // No hay hilos listos; queda sin current
             self.current = None;
+            1
         }
     }
-
 
     /// Cambia el estado del hilo si existe.
     pub fn set_state(&mut self, tid: ThreadId, st: ThreadState) {
@@ -75,45 +89,13 @@ impl MyTRuntime {
         }
     }
 
-
-    /// Marca al hilo actual como Ready, lo reencola y limpia current.
-    /// Luego intenta seleccionar el siguiente (no ejecuta la rutina aquí).
-    pub fn yield_current(&mut self) -> c_int {
-        if let Some(cur) = self.current {
-            // Si existe el hilo en el mapa, cambia su estado a Ready
-            if let Some(th) = self.threads.get_mut(&cur) {
-                // Sólo si no está terminado, lo ponemos Ready
-                if th.state != ThreadState::Terminated {
-                    th.state = ThreadState::Ready;
-                    self.enqueue(cur);
-                }
-            }
-            self.clear_current();
-        }
-        // Intenta seleccionar el siguiente a correr
-        self.schedule_next();
-        0
-    }
-
-    /// Variante que recibe un TID explícito. Si coincide con el current, hace yield.
-    /// Si no coincide, intenta mover ese TID a Ready (si existe) y reencolarlo.
-    pub fn yield_thread(&mut self, tid: ThreadId) -> c_int {
-        match self.current {
-            Some(cur) if cur == tid => self.yield_current(),
-            _ => {
-                if let Some(th) = self.threads.get_mut(&tid) {
-                    if th.state != ThreadState::Terminated {
-                        th.state = ThreadState::Ready;
-                        self.enqueue(tid);
-                    }
-                    0
-                } else {
-                    -1 // No existe el hilo
-                }
+    pub fn save_context(&mut self) {
+        if let Some(tid) = self.current {
+            if let Some(th) = self.threads.get_mut(&tid) {
+                th.state = ThreadState::Ready;
             }
         }
     }
-
 
     /// Devuelve el estado actual (útil para tests).
     pub fn get_state(&self, tid: ThreadId) -> Option<ThreadState> {
@@ -134,23 +116,25 @@ impl MyTRuntime {
     }
 
 
-    /// Ejecuta un “paso” cooperativo: elige, marca Running y fija `current`.
-   /* /// El código de hilo (o tests) deberían llamar luego a `yield/end`.
-    pub fn step(&mut self) -> Option<ThreadId> {
-        let next = self.schedule_next()?;
-        self.set_state(next, ThreadState::Running);
-        self.current = Some(next);
-        Some(next)
-    }
-*/
-    /// Útil cuando el hilo hace yield/end: limpiamos `current`.
+    /// Útil cuando se hace end: limpiamos `current`.
 
     pub fn clear_current(&mut self) {
         self.current = None;
     }
 
-
-    pub fn end_current(&mut self, retval: *mut AnyParam) -> c_int {
+    pub unsafe fn detach(&mut self, tid: ThreadId) -> c_int {
+        if let Some(th) = self.threads.get_mut(&tid) {
+            unsafe { th.attr.as_mut().unwrap().detach(); }
+            if th.state == ThreadState::Terminated {
+                self.threads.remove(&tid);
+            }
+            0
+        } else {
+            libc::ESRCH
+        }
+    }
+    
+    pub fn end_current(&mut self, retval: *mut AnyParam, ) -> c_int {
         let Some(cur) = self.current else {
             // No hay hilo en ejecución; no debería pasar, pero devolvemos error
             return -1;
@@ -165,16 +149,7 @@ impl MyTRuntime {
         }
 
         // Despierta a los joiners (si implementaste join bloqueante)
-        if let Some(waiters) = self.wait_on.remove(&cur) {
-            for w in waiters {
-                if let Some(tw) = self.threads.get_mut(&w) {
-                    if tw.state == ThreadState::Blocked {
-                        tw.state = ThreadState::Ready;
-                        self.run_queue.push_back(w);
-                    }
-                }
-            }
-        }
+        self.wake_joiners(&cur);
 
         // Limpia current y selecciona siguiente
         self.clear_current();
@@ -216,6 +191,19 @@ impl MyTRuntime {
             return 0;
         }
         -1 // No existe el thread
+    }
+
+    fn wake_joiners(&mut self, objective: &ThreadId) {
+        if let Some(waiters) = self.wait_on.remove(objective) {
+            for w in waiters {
+                if let Some(tw) = self.threads.get_mut(&w) {
+                    if tw.state == ThreadState::Blocked {
+                        tw.state = ThreadState::Ready;
+                        self.run_queue.push_back(w);
+                    }
+                }
+            }
+        }
     }
 
 }

@@ -5,9 +5,11 @@ use crate::mythread::myruntime::MyTRuntime;
 use crate::mythread::mythread::{AnyParam, MyTRoutine, ThreadId};
 use crate::mythread::mythreadattr::{MyAttr, MyThreadAttr};
 use crate::mythread::thread_state::ThreadState;
+use crate::Scheduler;
+use crate::scheduler::r#trait::DefaultScheduler;
 
-pub struct MyGlobalRuntime {
-    inner: UnsafeCell<Option<MyTRuntime>>,
+struct MyGlobalRuntime {
+    inner: UnsafeCell<Option<MyTRuntime<MyScheduler>>>,
 }
 unsafe impl Sync for MyGlobalRuntime {
 }
@@ -17,9 +19,10 @@ impl MyGlobalRuntime {
     pub const fn new() -> Self {
         Self { inner: UnsafeCell::new(None) }
     }
-    pub fn get_mut(&self) -> &mut Option<MyTRuntime> {
-        // encapsulamos el unsafe aquí
-        unsafe { &mut *self.inner.get() }
+    pub fn get_mut(&self) -> &mut MyTRuntime {
+        let inner = unsafe { &mut *self.inner.get() };
+        if inner.is_none() {*inner = Some(MyTRuntime::new())}
+        inner.as_mut().unwrap()
     }
 }
 
@@ -29,7 +32,7 @@ static RUNTIME: MyGlobalRuntime = MyGlobalRuntime::new();
 /// Crea un hilo del mismo modo que lo haría la biblioteca pthread
 ///
 /// # Arguments
-/// * `thread` - Es donde se almacenará el id del nuevo hilo.
+/// * `thread` - Es donde se almacenará el ID del nuevo hilo.
 /// * `_attr` - Se espera un MyThreadAttr que usara el hilo para configurarse.
 /// * `start_routine` - Es la rutina/función a ejecutar por el hilo.
 /// * `arg` - Son los parametros que requiera `start_routine` para ejecutarse.
@@ -45,18 +48,14 @@ pub unsafe extern "C" fn my_thread_create(
     arg: *mut AnyParam,
 ) -> c_int {
     let runtime = RUNTIME.get_mut();
-    if runtime.is_none() {
-        *runtime = Some(MyTRuntime::new());
-    }
-    let rt = runtime.as_mut().unwrap();
     let attr_ref: *const MyAttr = if attr.is_null() {
         let default_attr = MyThreadAttr::new();
-        default_attr.as_ptr()
+        default_attr.c_pointer()
     } else {
         attr
     };
 
-    rt.create(thread, attr_ref, start_routine, arg)
+    runtime.create(thread, attr_ref, start_routine, arg)
 }
 
 
@@ -68,66 +67,29 @@ pub unsafe extern "C" fn my_thread_join(
     ret_val: *mut *mut AnyParam,
 ) -> c_int {
     let runtime = RUNTIME.get_mut();
-    runtime.as_mut().unwrap().join(thread, ret_val)
+    runtime.join(thread, ret_val)
 }
 
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn my_thread_yield(tid: ThreadId) -> c_int {
-    let runtime = RUNTIME.get_mut();
-    if let Some(rt) = runtime.as_mut() {
-        rt.yield_thread(tid)
-    } else {
-        -1
+pub unsafe extern "C" fn my_thread_yield() -> c_int {
+    let rt = RUNTIME.get_mut();
+    unsafe {
+        rt.save_context();
     }
+    0
+
 }
 
 #[unsafe(no_mangle)]
 
 pub unsafe extern "C" fn my_thread_end(retval: *mut AnyParam) -> c_int {
     let runtime = RUNTIME.get_mut();
-    if let Some(rt) = runtime.as_mut() {
-        rt.end_current(retval)
-    } else {
-        // Si aún no hay runtime inicializado, no hay nada que terminar.
-        // Puedes devolver -1 para señalar error.
-        -1
-    }
+    runtime.end_current(retval)
 }
 
 
 /*
-  etorno inmediato: no bloqueamos.
-    if target_state == ThreadState::Terminated {
-        return Ok(());
-    }
-
-    // Bloquea al current y registra dependencia
-    rt.mark_blocked_on(current, target);
-    rt.clear_current();
-    Ok(())
-}
-
-/// El hilo actual cede la CPU .
-/// Convención: quien llama pasa su propio `current_tid`.
-pub fn my_thread_yield(rt: &mut MyTRuntime, current_tid: ThreadId) {
-    // Marcar Ready y reencolar. (Suponemos estaba Running.)
-    rt.set_state(current_tid, ThreadState::Ready);
-    rt.enqueue(current_tid);
-    rt.clear_current();
-    // aqui iria `schedule_next()` y “cambiará” de hilo.
-}
-
-/// El hilo actual termina su ejecución.
-pub fn my_thread_end(rt: &mut MyTRuntime, current_tid: ThreadId) {
-    rt.set_state(current_tid, ThreadState::Terminated);
-    rt.on_terminated(current_tid); // despierta joiners
-    rt.clear_current()
-
-}
-
-
-
 #[derive(Debug)]
 pub enum JoinError {
     NoSuchThread,

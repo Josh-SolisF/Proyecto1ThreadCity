@@ -2,45 +2,38 @@ use libc::{
     pthread_attr_t,
     pthread_attr_init,
     pthread_attr_destroy,
-    pthread_attr_setdetachstate,
-    pthread_attr_setstacksize,
-    PTHREAD_CREATE_DETACHED,
-    PTHREAD_CREATE_JOINABLE,
 };
 
-pub type MyAttr = pthread_attr_t;
+use crate::scheduler::SchedulerType;
 
-#[repr(transparent)]
+pub type PriorityLevel = u8;
 pub struct MyThreadAttr {
-    inner: MyAttr,
+    inner: pthread_attr_t,
+    pub(crate) scheduler_policy: SchedulerType,
+    pub(crate) dead_line: usize,
+    pub(crate) priority: PriorityLevel,
+    pub(crate) detached: bool,
 }
 
 impl MyThreadAttr {
-    pub fn new() -> Self {
+    pub fn new(
+        scheduler_policy: SchedulerType,
+        dead_line: usize,
+        priority: PriorityLevel,
+    ) -> Self {
         unsafe {
-            let mut attr: MyAttr = std::mem::zeroed();
+            let mut attr: pthread_attr_t = std::mem::zeroed();
             pthread_attr_init(&mut attr);
-            Self { inner: attr }
+            Self { inner: attr, scheduler_policy, dead_line, priority, detached: false }
         }
     }
 
-    /// Configura el modo detached o joinable
-    pub fn set_detached(&mut self, detached: bool) {
-        let state = if detached { PTHREAD_CREATE_DETACHED } else { PTHREAD_CREATE_JOINABLE };
-        unsafe {
-            pthread_attr_setdetachstate(&mut self.inner,state);
-        }
+    pub fn detach(&mut self) {
+        self.detached = true;
     }
-
-    /// Configura el tamaño de la pila
-    pub fn set_stack_size(&mut self, size: usize) {
-        unsafe {
-            pthread_attr_setstacksize(&mut self.inner, size);
-        }
-    }
-
+    
     /// Devuelve un puntero al pthread_attr_t interno (para pasar a pthread_create)
-    pub fn as_ptr(&self) -> *const MyAttr {
+    pub fn c_pointer(&self) -> *const pthread_attr_t {
         &self.inner
     }
 }

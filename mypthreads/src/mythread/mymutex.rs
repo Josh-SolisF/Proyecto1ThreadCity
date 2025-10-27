@@ -5,6 +5,7 @@ use std::thread::yield_now;
 use crate::mythread::mythread::ThreadId;
 
 pub struct MyMutex {
+    pub(crate) owner: Option<ThreadId>,
     locked: bool,
     wait_queue: VecDeque<ThreadId>,
 }
@@ -12,6 +13,7 @@ pub struct MyMutex {
 impl MyMutex {
     pub const fn new() -> Self {
         MyMutex {
+            owner: None,
             locked: false,
             wait_queue: VecDeque::new(),
         }
