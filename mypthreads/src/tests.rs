@@ -6,7 +6,7 @@ mod tests {
     use crate::mythread::thread_state::ThreadState;
     use std::ptr;
     use libc::c_int;
-    use crate::{RoundRobinScheduler, Scheduler};
+    use crate::{Scheduler};
     use crate::mythread::mymutex::MyMutex;
     use crate::scheduler::{SchedulerType};
     use crate::mythread::mypthreadexits::Exits;
@@ -25,19 +25,14 @@ mod tests {
         static_value as *mut i32 as *mut AnyParam
     }
 
-    fn generate_schedules() -> Vec<Box<dyn Scheduler>> {
-        vec![
-            Box::new(RoundRobinScheduler),
-            Box::new(RoundRobinScheduler),
-            Box::new(RoundRobinScheduler),
-        ]
-    }
+
     #[test]
     fn test_create_and_join_behaviors() {
         unsafe {
-            let mut pth: MyPThread = MyPThread::new(generate_schedules());
+            let mut pth: MyPThread = MyPThread::new();
             let mut tid: ThreadId = 0;
-            let mut my_attr: MyThreadAttr = MyThreadAttr::new(SchedulerType::RoundRobin, 0, 1);
+
+            let mut my_attr: MyThreadAttr = MyThreadAttr::new(usize::MAX, 1);
             let mut value_my: i32 = 5;
             let mut retval_my: *mut AnyParam = ptr::null_mut();
 
@@ -46,6 +41,8 @@ mod tests {
                 &mut my_attr,
                 test_thread_function,
                 &mut value_my as *mut i32 as *mut AnyParam,
+                Some(SchedulerType::RoundRobin),
+
             );
             assert_eq!(res, 0, "my_thread_create falló");
 
@@ -63,11 +60,11 @@ mod tests {
     #[test]
     fn test_multiple_threads() {
         unsafe {
-            let mut pth: MyPThread = MyPThread::new(generate_schedules());
+            let mut pth: MyPThread = MyPThread::new();
             const IDS_SIZE: usize = 3;
             let mut ids: [ThreadId; IDS_SIZE] = [1; IDS_SIZE];
             let mut results = [ptr::null_mut(); 3];
-            let mut my_attr: MyThreadAttr = MyThreadAttr::new(SchedulerType::RoundRobin, 0, 1);
+            let mut my_attr: MyThreadAttr = MyThreadAttr::new(usize::MAX, 1);
             let mut value_my: i32 = 5;
 
             for i in 0..IDS_SIZE {
@@ -76,6 +73,8 @@ mod tests {
                     &mut my_attr,
                     test_thread_returns_static,
                     &mut value_my as *mut i32 as *mut AnyParam,
+                    Some(SchedulerType::RoundRobin),
+
                 );
                 assert_eq!(res, 0, "my_thread_create falló para hilo {}", i);
             }
@@ -94,13 +93,13 @@ mod tests {
     #[test]
     fn test_thread_yield_behavior() {
         unsafe {
-            let mut pth = MyPThread::new(generate_schedules());
+            let mut pth = MyPThread::new();
 
             // Crear dos hilos simples
             let mut tid1: ThreadId = 0;
             let mut tid2: ThreadId = 0;
-            let mut attr1 = MyThreadAttr::new(SchedulerType::RoundRobin, 0, 1);
-            let mut attr2 = MyThreadAttr::new(SchedulerType::RoundRobin, 0, 1);
+            let mut attr1: MyThreadAttr = MyThreadAttr::new(usize::MAX, 1);
+            let mut attr2: MyThreadAttr = MyThreadAttr::new(usize::MAX, 1);
             let mut dummy_val: i32 = 0;
 
             pth.my_thread_create(
@@ -108,12 +107,16 @@ mod tests {
                 &mut attr1,
                 test_thread_returns_static,
                 &mut dummy_val as *mut i32 as *mut AnyParam,
+                Some(SchedulerType::RoundRobin),
+
             );
             pth.my_thread_create(
                 &mut tid2,
                 &mut attr2,
                 test_thread_returns_static,
                 &mut dummy_val as *mut i32 as *mut AnyParam,
+                Some(SchedulerType::RoundRobin),
+
             );
 
             // Forzar selección inicial
@@ -140,9 +143,9 @@ mod tests {
     #[test]
     fn test_thread_end_behavior() {
         unsafe {
-            let mut pth = MyPThread::new(generate_schedules());
+            let mut pth = MyPThread::new();
             let mut tid: ThreadId = 0;
-            let mut attr = MyThreadAttr::new(SchedulerType::RoundRobin, 0, 1);
+            let mut attr: MyThreadAttr = MyThreadAttr::new(usize::MAX, 1);
             let mut dummy_val: i32 = 0;
 
             // Crear hilo y ejecutarlo
@@ -151,6 +154,8 @@ mod tests {
                 &mut attr,
                 test_thread_returns_static,
                 &mut dummy_val as *mut i32 as *mut AnyParam,
+                Some(SchedulerType::RoundRobin),
+
             );
             pth.runtime.schedule_next();
             assert_eq!(pth.runtime.get_current(), Some(tid));
@@ -174,9 +179,9 @@ mod tests {
     #[test]
     fn test_thread_detach_behavior() {
         unsafe {
-            let mut pth = MyPThread::new(generate_schedules());
+            let mut pth = MyPThread::new();
             let mut tid: ThreadId = 0;
-            let mut attr = MyThreadAttr::new(SchedulerType::RoundRobin, 0, 1);
+            let mut attr: MyThreadAttr = MyThreadAttr::new(usize::MAX, 1);
             let mut val: i32 = 10;
 
             // Crear hilo
@@ -185,6 +190,8 @@ mod tests {
                 &mut attr,
                 test_thread_returns_static,
                 &mut val as *mut i32 as *mut AnyParam,
+                Some(SchedulerType::RoundRobin),
+
             );
 
             // Detach debería devolver 0
@@ -202,7 +209,7 @@ mod tests {
     #[test]
     fn test_mutex_init_and_destroy() {
         unsafe {
-            let mut pth = MyPThread::new(generate_schedules());
+            let mut pth = MyPThread::new();
             let mut mutex = MyMutex::new();
 
             // Inicializar mutex
@@ -222,9 +229,9 @@ mod tests {
     fn test_mutex_lock_and_unlock() {
         unsafe {
             let block_val: c_int = Exits::ThreadBlocked as c_int;
-            let mut pth = MyPThread::new(generate_schedules());
+            let mut pth = MyPThread::new();
             let mut tid: ThreadId = 0;
-            let mut attr = MyThreadAttr::new(SchedulerType::RoundRobin, 0, 1);
+            let mut attr: MyThreadAttr = MyThreadAttr::new(usize::MAX, 1);
             let mut val: i32 = 10;
 
             pth.my_thread_create(
@@ -232,6 +239,8 @@ mod tests {
                 &mut attr,
                 test_thread_returns_static,
                 &mut val as *mut i32 as *mut AnyParam,
+                Some(SchedulerType::RoundRobin),
+
             );
 
             pth.runtime.schedule_next();
@@ -258,7 +267,7 @@ mod tests {
     #[test]
     fn test_mutex_null_pointer_behavior() {
         unsafe {
-            let mut pth = MyPThread::new(generate_schedules());
+            let mut pth = MyPThread::new();
             let null_mutex: *mut MyMutex = std::ptr::null_mut();
 
             let res_init = pth.my_mutex_init(null_mutex, std::ptr::null());

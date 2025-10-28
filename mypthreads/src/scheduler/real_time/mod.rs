@@ -1,3 +1,5 @@
+mod tests;
+
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, VecDeque};
 use crate::mythread::mythread::{MyThread, ThreadId};

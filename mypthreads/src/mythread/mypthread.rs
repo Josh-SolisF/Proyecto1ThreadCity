@@ -13,7 +13,7 @@ pub struct MyPThread {
 }
 
 impl MyPThread {
-    pub fn new(schedulers: Vec<Box<dyn Scheduler>>) -> Self {
+    pub fn new() -> Self {
         let rt = MyTRuntime::new();
         Self {
             runtime: rt,
@@ -27,7 +27,7 @@ impl MyPThread {
         attr: *mut MyThreadAttr,
         start_routine: MyTRoutine,
         arg: *mut AnyParam,
-        scheduler: SchedulerType,
+        scheduler: Option<SchedulerType>,
     ) -> c_int {
         self.runtime.create(thread, attr, start_routine, arg, Option::from(scheduler))
     }
