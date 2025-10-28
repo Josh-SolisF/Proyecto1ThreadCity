@@ -2,6 +2,7 @@ use std::os::raw::c_void;
 use libc::pthread_t;
 use crate::mythread::mythreadattr::MyThreadAttr;
 use crate::mythread::thread_state::ThreadState;
+use crate::scheduler::SchedulerType;
 
 pub type ThreadId = pthread_t;
 pub type AnyParam = c_void;
@@ -14,10 +15,12 @@ pub struct MyThread {
     pub(crate) start_routine: MyTRoutine,
     pub(crate) arg: *mut AnyParam,
     pub(crate) ret_val: *mut AnyParam,
+    pub(crate) scheduler: SchedulerType,
+
 }
 
 impl MyThread {
-    pub fn new(id: ThreadId, attr: *mut MyThreadAttr, routine: MyTRoutine, arg: *mut AnyParam) -> Self {
+    pub fn new(id: ThreadId, attr: *mut MyThreadAttr, routine: MyTRoutine, arg: *mut AnyParam, scheduler: Option<SchedulerType>) -> Self {
         Self {
             id,
             state: ThreadState::New,
@@ -25,16 +28,17 @@ impl MyThread {
             start_routine: routine,
             arg,
             ret_val: std::ptr::null_mut(),
+            scheduler: scheduler.unwrap_or_default() ,
         }
     }
     
     pub fn run(&mut self) {
-        // Si ya terminó (por haber llamado my_thread_end dentro de la rutina), no hagas nada
+        // Si ya terminóno hacemos nada
         if self.state == ThreadState::Terminated {
             return;
         }
 
-        // De lo contrario, ejecuta la rutina y termina normalmente
+        // Si no ejecutamos la rutina y termina normalmente
         let result = (self.start_routine)(self.arg);
         self.ret_val = result;
         self.state = ThreadState::Terminated;

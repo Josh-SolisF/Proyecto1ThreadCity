@@ -6,6 +6,7 @@ use crate::mythread::mypthreadexits::Exits::{Ok, MutexNotInitialized, NullMutex,
 use crate::mythread::myruntime::MyTRuntime;
 use crate::mythread::mythread::{AnyParam, MyTRoutine, ThreadId};
 use crate::mythread::mythreadattr::{MyThreadAttr};
+use crate::scheduler::SchedulerType;
 
 pub struct MyPThread {
     pub(crate) runtime: MyTRuntime,
@@ -13,7 +14,7 @@ pub struct MyPThread {
 
 impl MyPThread {
     pub fn new(schedulers: Vec<Box<dyn Scheduler>>) -> Self {
-        let rt = MyTRuntime::new(schedulers);
+        let rt = MyTRuntime::new();
         Self {
             runtime: rt,
         }
@@ -26,8 +27,9 @@ impl MyPThread {
         attr: *mut MyThreadAttr,
         start_routine: MyTRoutine,
         arg: *mut AnyParam,
+        scheduler: SchedulerType,
     ) -> c_int {
-        self.runtime.create(thread, attr, start_routine, arg)
+        self.runtime.create(thread, attr, start_routine, arg, Option::from(scheduler))
     }
 
     pub unsafe extern "C" fn my_thread_join(
