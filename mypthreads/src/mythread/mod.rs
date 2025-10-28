@@ -1,11 +1,9 @@
 pub mod mypthread;
 pub mod mythread;
-mod mymutex;
+pub(crate) mod mymutex;
 pub mod thread_state;
 mod myruntime;
-mod mythreadattr;
+pub(crate) mod mythreadattr;
 
-mod holdup;
-
-mod tests;
-mod priority_level;
+mod mutexlockkind;
+pub mod mypthreadexits;

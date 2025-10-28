@@ -1,22 +1,25 @@
 use std::collections::{HashMap, VecDeque};
 use std::os::raw::c_int;
+use crate::mythread::mypthreadexits::Exits::{Ok, ThreadIsTerminated, UnknownThread};
 use crate::mythread::mythread::{AnyParam, MyTRoutine, MyThread, ThreadId};
 use crate::mythread::mythreadattr::MyThreadAttr;
 use crate::mythread::thread_state::ThreadState;
 use crate::Scheduler;
 
-pub(super) struct MyTRuntime<S: Scheduler> {
+pub struct MyTRuntime {
+    pub(crate) time_ms: usize,
     pub(crate) run_queue: VecDeque<ThreadId>,
     pub(crate) threads: HashMap<ThreadId, MyThread>,
     pub(crate) next_id: ThreadId,
     pub(crate) current: Option<ThreadId>,
     pub(crate) wait_on: HashMap<ThreadId, Vec<ThreadId>>, // target -> waiters
-    pub(crate) my_schedulers: Vec<S>,
+    pub(crate) my_schedulers: Vec<Box<dyn Scheduler>>,
 }
 
-impl<S: Scheduler> MyTRuntime<S> {
-    pub fn new(schedulers: Vec<S>) -> Self {
+impl MyTRuntime {
+    pub fn new(schedulers: Vec<Box<dyn Scheduler>>) -> Self {
         Self {
+            time_ms: 0,
             threads: HashMap::new(),
             run_queue: VecDeque::new(),
             next_id: 0,
@@ -24,6 +27,10 @@ impl<S: Scheduler> MyTRuntime<S> {
             wait_on: HashMap::new(),
             my_schedulers: schedulers
         }
+    }
+    
+    pub fn advance_steps(&mut self, passed: usize) {
+        self.time_ms = self.time_ms.saturating_add(passed);
     }
 
     /// Crea un hilo en estado Ready y lo encola.
@@ -133,7 +140,7 @@ impl<S: Scheduler> MyTRuntime<S> {
             libc::ESRCH
         }
     }
-    
+
     pub fn end_current(&mut self, retval: *mut AnyParam, ) -> c_int {
         let Some(cur) = self.current else {
             // No hay hilo en ejecución; no debería pasar, pero devolvemos error
@@ -193,6 +200,17 @@ impl<S: Scheduler> MyTRuntime<S> {
         -1 // No existe el thread
     }
 
+    pub fn wake_thread(&mut self, target: ThreadId) -> c_int {
+        if let Some(th) = self.threads.get_mut(&target) {
+            if th.state != ThreadState::Terminated {
+                th.state = ThreadState::Ready;
+                return Ok as c_int;
+            }
+            return ThreadIsTerminated as c_int;
+        }
+        UnknownThread as c_int
+    }
+    
     fn wake_joiners(&mut self, objective: &ThreadId) {
         if let Some(waiters) = self.wait_on.remove(objective) {
             for w in waiters {
@@ -205,5 +223,4 @@ impl<S: Scheduler> MyTRuntime<S> {
             }
         }
     }
-
 }
