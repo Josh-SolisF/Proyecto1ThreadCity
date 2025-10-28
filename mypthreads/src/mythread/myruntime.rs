@@ -15,7 +15,6 @@ pub struct MyTRuntime {
     pub(crate) next_id: ThreadId,
     pub(crate) current: Option<ThreadId>,
     pub(crate) wait_on: HashMap<ThreadId, Vec<ThreadId>>, // target -> waiters
-    pub(crate) my_schedulers: Vec<Box<dyn Scheduler>>,
     schedulers: HashMap<SchedulerType, Box<dyn Scheduler>>
 
 }
@@ -35,7 +34,6 @@ impl MyTRuntime {
             next_id: 0,
             current: None,
             wait_on: HashMap::new(),
-            my_schedulers,
             schedulers,
         }
     }
