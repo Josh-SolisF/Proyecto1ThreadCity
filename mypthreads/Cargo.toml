@@ -7,4 +7,5 @@ edition = "2024"
 libc = "1.0.0-alpha.1"
 
 [lib]
-crate-type = ["cdylib"]
+name = "mypthreads"
+crate-type = ["rlib"]
