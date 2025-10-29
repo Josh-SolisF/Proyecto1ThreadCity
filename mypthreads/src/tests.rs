@@ -153,7 +153,6 @@ mod tests {
             }
         }
     }
-    ``
 
     #[test]
     fn test_create_and_join_behaviors() {
