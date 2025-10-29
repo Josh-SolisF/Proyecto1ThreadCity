@@ -40,6 +40,49 @@ impl MyTRuntime {
 
 
 
+    pub fn change_scheduler(&mut self, tid: ThreadId, new_kind: SchedulerType) -> c_int {
+        // Validaciones básicas
+        let t = match self.threads.get_mut(&tid) {
+            Some(t) => t,
+            None => return -1, // no existe
+        };
+
+        if t.state == ThreadState::Terminated {
+            return -1;
+        }
+
+        // Para ver si es el mismo
+        let old = t.scheduler;
+        if old == new_kind {
+            return 0;
+        }
+
+        // Cambiar el campo del hilo
+        t.scheduler = new_kind;
+
+        // Reconstruir colas Ready de los schedulers para asegurar consistencia
+        self.rebuild_ready_queues();
+
+        0
+    }
+
+    /// Reconstruye las colas de los schedulers desde el estado de los hilos.
+    fn rebuild_ready_queues(&mut self) {
+        // Reinicializarlas
+        self.schedulers.insert(SchedulerType::RoundRobin, Box::new(RRScheduler::new()));
+        self.schedulers.insert(SchedulerType::Lottery,    Box::new(LotteryScheduler::new()));
+        self.schedulers.insert(SchedulerType::RealTime,   Box::new(RealTimeScheduler::new()));
+
+        // Re-encolar hilos en estado Ready en su scheduler actual
+        for (&tid, t) in self.threads.iter() {
+            if t.state == ThreadState::Ready {
+                if let Some(s) = self.schedulers.get_mut(&t.scheduler) {
+                    s.enqueue(tid, t);
+                }
+            }
+        }
+    }
+
         pub fn advance_steps(&mut self, passed: usize) {
         self.time_ms = self.time_ms.saturating_add(passed);
     }
