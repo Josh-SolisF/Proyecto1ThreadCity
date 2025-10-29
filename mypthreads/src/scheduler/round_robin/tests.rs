@@ -1,12 +1,10 @@
 // scheduler/round_robin.rs (o en tests/round_robin_tests.rs)
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::ffi::c_void;
     use crate::scheduler::scheduler_type::SchedulerType;
     use crate::mythread::mythread::{MyThread, ThreadId, AnyParam};
     use crate::mythread::mythreadattr::MyThreadAttr;
-    use crate::mythread::thread_state::ThreadState;
     use crate::Scheduler;
     use crate::scheduler::round_robin::RRScheduler;
 

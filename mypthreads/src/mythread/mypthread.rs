@@ -1,4 +1,3 @@
-use crate::Scheduler;
 use std::os::raw::c_int;
 use crate::mythread::mutexlockkind::MyMutexAttr;
 use crate::mythread::mymutex::{MyMutex};

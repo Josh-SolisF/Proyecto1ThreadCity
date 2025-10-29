@@ -6,7 +6,6 @@ mod tests {
     use crate::mythread::thread_state::ThreadState;
     use std::ptr;
     use libc::c_int;
-    use crate::{Scheduler};
     use crate::mythread::mymutex::MyMutex;
     use crate::scheduler::{SchedulerType};
     use crate::mythread::mypthreadexits::Exits;

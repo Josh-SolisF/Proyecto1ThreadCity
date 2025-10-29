@@ -1,10 +1,7 @@
 mod tests;
 
-use std::cmp::Reverse;
 use rand::Rng;
-use std::collections::{BinaryHeap, HashMap, VecDeque};
 use crate::mythread::mythread::{MyThread, ThreadId};
-use crate::mythread::mythreadattr::PriorityLevel;
 use super::Scheduler;
 
 
