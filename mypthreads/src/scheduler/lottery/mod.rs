@@ -5,7 +5,8 @@ use rand::Rng;
 use std::collections::{BinaryHeap, HashMap, VecDeque};
 use crate::mythread::mythread::{MyThread, ThreadId};
 use crate::mythread::mythreadattr::PriorityLevel;
-use crate::Scheduler;
+use super::Scheduler;
+
 
 /// 0 = prioridad más, 255 = menos.
 
@@ -15,19 +16,35 @@ pub struct LotteryScheduler {
 }
 impl LotteryScheduler {
     pub fn new() -> Self {
-        // Semilla 
+        // Semilla
         Self { entries: Vec::new(), rng_state: 0x9E3779B97F4A7C15 }
     }
 
+
+    #[cfg(test)]
+    pub fn with_seed(seed: u64) -> Self {
+        Self { entries: Vec::new(), rng_state: seed }
+    }
+
+
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        // LCG sencillo
-        self.rng_state = self.rng_state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1);
-        self.rng_state
+        // splitmix64: https://prng.di.unimi.it/splitmix64.c
+        let mut z = self.rng_state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        self.rng_state = z;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    #[inline]
+    fn sample_u64_below(&mut self, n: u64) -> u64 {
+        // toma la parte alta de (rand * n) para evitar sesgo
+        let r = self.next_u64();
+        (((r as u128) * (n as u128)) >> 64) as u64
     }
 }
+
 
 impl Scheduler for LotteryScheduler {
     fn enqueue(&mut self, tid: ThreadId, t: &MyThread) {
@@ -71,4 +88,3 @@ impl Scheduler for LotteryScheduler {
     fn is_empty(&self) -> bool { self.entries.is_empty() }
 }
 
- 

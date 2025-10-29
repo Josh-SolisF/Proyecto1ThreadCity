@@ -267,8 +267,7 @@ impl MyTRuntime {
     pub fn join(&mut self, target: ThreadId, ret_val_out: *mut *mut AnyParam) -> c_int {
         //  Validaciones básicas
 
-        let current_tid = match self.current {Some(id) => id,None => return -1,};  // No hay hilo en ejecución
-        if current_tid == target {return -1;}
+        // Asegurar que el target exista
         let target_exists = match self.threads.get(&target) {
             Some(t) => t, None => return -1, // Hilo objetivo no existe
         };
@@ -283,46 +282,71 @@ impl MyTRuntime {
             return 0;
         }
 
+        // MODO DRIVER: no hay hilo actual (join desde el hilo de prueba / fuera del runtime)
+        if self.current.is_none() {
+            loop {
+                // ¿terminó el target?
+                let done = match self.threads.get(&target) { Some(t) => t.state == ThreadState::Terminated, None => true };
+                if done {break;}
+                // Avanzar el scheduler, si no hay nada para correr y no terminó -> deadlock
+                if self.schedule_next() != 0 {return -1;}
+            }
+            if let Some(t) = self.threads.get(&target) {
+                if !ret_val_out.is_null() {unsafe { *ret_val_out = t.ret_val as *mut AnyParam; }}
+            } else {
+                if !ret_val_out.is_null() {unsafe { *ret_val_out = std::ptr::null_mut(); }}
+            }
+            return 0;
+        }
+
+        // MODO RUNTIME: hay hilo actual, aplicar bloqueo y espera
+        let current_tid = match self.current {Some(id) => id, None => unreachable!()};
+        if current_tid == target {return -1;}
+
         // Registrar que el hilo "current" espera a "target" (un solo joiner)
         {
             let waiters = self.wait_on.entry(target).or_default();
             if waiters.iter().any(|&w| w == current_tid) {return -1;}
-            if !waiters.is_empty() {return -1;}waiters.push(current_tid);
+            if !waiters.is_empty() {return -1;} waiters.push(current_tid);
         }
 
-        //Bloquear al hilo actual y ceder el CPU
+        // Bloquear al hilo actual y ceder el CPU
         {
             let cur = self.threads.get_mut(&current_tid).unwrap();
             cur.state = ThreadState::Blocked;
         }
 
-        //dejamos que el scheduler corra otros hilos hasta que el objetivo termine (wake_joiners lo reactivará) y
+        // dejamos que el scheduler corra otros hilos hasta que el objetivo termine (wake_joiners lo reactivará) y
         // nos vuelvan a programar (self.current == Some(current_tid))
         loop {
             // Si el objetivo ya terminó, salimos del loop para devolver ret_val
-            if let Some(t) = self.threads.get(&target) {if t.state == ThreadState::Terminated {break;} }
+            if let Some(t) = self.threads.get(&target) {if t.state == ThreadState::Terminated {break;}}
             else {break;}
 
             // Pedimos al runtime que ejecute el siguiente hilo disponible schedule_next() hará run-to-completion del elegido,
             // y al terminar "target", llamará a wake_joiners() que nos re-encola.
             if self.schedule_next() != 0 {return -1;}
+
             // Si ya volvimos a ser el hilo actual, revisa nuevamente el estado del target.
             if self.current == Some(current_tid) {
-                if let Some(t) = self.threads.get(&target) {
-                    if t.state == ThreadState::Terminated {break;}} else {break;}}
+                if let Some(t) = self.threads.get(&target) { if t.state == ThreadState::Terminated {break;} }
+                else {break;}
+            }
         }
 
         // El target está Terminated Recupera el ret_val y limpia la espera.
         if let Some(t) = self.threads.get(&target) {
-            if !ret_val_out.is_null() {unsafe { *ret_val_out = t.ret_val as *mut AnyParam; }}}
-
-        else {if !ret_val_out.is_null() {unsafe { *ret_val_out = std::ptr::null_mut(); }}}
+            if !ret_val_out.is_null() {unsafe { *ret_val_out = t.ret_val as *mut AnyParam; }}
+        } else {
+            if !ret_val_out.is_null() {unsafe { *ret_val_out = std::ptr::null_mut(); }}
+        }
 
         // Limpiar la lista de waiters para este target
         self.wait_on.remove(&target);
 
         0
     }
+
 
 
 
