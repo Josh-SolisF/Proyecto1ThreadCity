@@ -25,6 +25,136 @@ mod tests {
     }
 
 
+    #[cfg(test)]
+    mod tests_change_sched {
+        use std::ptr;
+        use crate::mythread::mypthread::MyPThread;
+        use crate::mythread::mythread::{AnyParam, ThreadId};
+        use crate::mythread::mythreadattr::MyThreadAttr;
+        use crate::scheduler::scheduler_type::SchedulerType;
+
+        extern "C" fn test_thread_returns_static(_arg: *mut AnyParam) -> *mut AnyParam {
+            let static_value: &'static mut i32 = Box::leak(Box::new(42));
+            static_value as *mut i32 as *mut AnyParam
+        }
+
+        #[test]
+        fn test_change_scheduler_to_lottery_and_join() {
+            unsafe {
+                let mut pth: MyPThread = MyPThread::new();
+
+                let mut tid: ThreadId = 0;
+                // deadline = MAX (irrelevante para Lottery), priority=tickets (e.g., 10)
+                let mut attr: MyThreadAttr = MyThreadAttr::new(usize::MAX, 10);
+
+                let mut retval: *mut AnyParam = ptr::null_mut();
+
+                // Crear hilo con scheduler por defecto (None -> RoundRobin)
+                let r = pth.my_thread_create(
+                    &mut tid,
+                    &mut attr,
+                    test_thread_returns_static,
+                    ptr::null_mut(),
+                    None,
+                );
+                assert_eq!(r, 0, "my_thread_create falló");
+
+                // Cambiar el scheduler del hilo a Lottery
+                let rc = pth.my_thread_chsched(tid, SchedulerType::Lottery);
+                assert_eq!(rc, 0, "my_thread_chsched falló");
+
+                // Unir y verificar retorno
+                let j = pth.my_thread_join(tid, &mut retval as *mut *mut AnyParam);
+                assert_eq!(j, 0, "my_thread_join falló");
+
+                let rv_i32 = retval as *mut i32;
+                assert!(!rv_i32.is_null(), "retval es nulo");
+                assert_eq!(*rv_i32, 42, "Valor retornado inesperado");
+            }
+        }
+    }
+    #[cfg(test)]
+    mod tests_change_sched_order {
+        use std::ptr;
+        use std::sync::atomic::{AtomicI32, Ordering};
+        use crate::mythread::mypthread::MyPThread;
+        use crate::mythread::mythread::{AnyParam, ThreadId};
+        use crate::mythread::mythreadattr::MyThreadAttr;
+        use crate::scheduler::scheduler_type::SchedulerType;
+
+        // 0 = nadie ha corrido aún; 1 = corrió RT primero; 2 = corrió RR primero
+        static FIRST_RAN: AtomicI32 = AtomicI32::new(0);
+
+        extern "C" fn mark_rt(_arg: *mut AnyParam) -> *mut AnyParam {
+            // marca que el RT corrió primero si FIRST_RAN aún es 0
+            FIRST_RAN.compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst).ok();
+            std::ptr::null_mut()
+        }
+
+        extern "C" fn mark_rr(_arg: *mut AnyParam) -> *mut AnyParam {
+            // marca que el RR corrió primero si FIRST_RAN aún es 0
+            FIRST_RAN.compare_exchange(0, 2, Ordering::SeqCst, Ordering::SeqCst).ok();
+            std::ptr::null_mut()
+        }
+
+        #[test]
+        fn test_change_scheduler_to_realtime_runs_first() {
+            unsafe {
+                FIRST_RAN.store(0, Ordering::SeqCst);
+
+                let mut pth: MyPThread = MyPThread::new();
+
+                let mut tid_rr: ThreadId = 0;
+                let mut tid_rt: ThreadId = 0;
+
+                // RR: deadline irrelevante, priority cualquiera
+                let mut attr_rr: MyThreadAttr = MyThreadAttr::new(usize::MAX, 1);
+                // RT: deadline más cercano -> debería ejecutarse primero por política global (RT > Lottery > RR)
+                let mut attr_rt: MyThreadAttr = MyThreadAttr::new(10, 1);
+
+                // Crear ambos inicialmente con default (RR)
+                let r1 = pth.my_thread_create(
+                    &mut tid_rr,
+                    &mut attr_rr,
+                    mark_rr,
+                    ptr::null_mut(),
+                    None, // RR por defecto
+                );
+                assert_eq!(r1, 0);
+
+                let r2 = pth.my_thread_create(
+                    &mut tid_rt,
+                    &mut attr_rt,
+                    mark_rt,
+                    ptr::null_mut(),
+                    None, // arranca RR, lo cambiamos abajo
+                );
+                assert_eq!(r2, 0);
+
+                // Cambiar el segundo hilo a RealTime (EDF)
+                let rc = pth.my_thread_chsched(tid_rt, SchedulerType::RealTime);
+                assert_eq!(rc, 0, "my_thread_chsched falló");
+
+                // Para forzar ejecución de ambos, podemos joinear a cualquiera.
+                // El scheduler en modo "driver" avanzará y por política debería correr RT primero.
+                let mut dummy: *mut AnyParam = ptr::null_mut();
+
+                // Join sobre el RR (esto hará correr primero RT y luego RR)
+                let j1 = pth.my_thread_join(tid_rr, &mut dummy as *mut *mut AnyParam);
+                assert_eq!(j1, 0);
+
+                // Join el RT (por si no terminó, pero debería ya haber terminado)
+                let j2 = pth.my_thread_join(tid_rt, &mut dummy as *mut *mut AnyParam);
+                assert_eq!(j2, 0);
+
+                // Verificar que el que corrió primero fue el de RealTime
+                let who = FIRST_RAN.load(Ordering::SeqCst);
+                assert_eq!(who, 1, "Se esperaba que RealTime corriera primero (who={who})");
+            }
+        }
+    }
+    ``
+
     #[test]
     fn test_create_and_join_behaviors() {
         unsafe {

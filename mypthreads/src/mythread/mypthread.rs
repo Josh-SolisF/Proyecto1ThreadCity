@@ -94,4 +94,10 @@ impl MyPThread {
             (*mutex).unlock(self.runtime.get_current())
         }
     }
+
+
+    pub unsafe extern "C" fn my_thread_chsched(&mut self, thread: ThreadId, new_kind: SchedulerType) -> c_int {
+        self.runtime.change_scheduler(thread, new_kind)
+    }
+
 }

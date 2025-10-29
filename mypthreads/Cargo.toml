@@ -8,4 +8,5 @@ libc = "1.0.0-alpha.1"
 rand = "0.10.0-rc.0"
 
 [lib]
-crate-type = ["cdylib"]
+name = "mypthreads"
+crate-type = ["rlib"]
