@@ -1,5 +1,5 @@
 use crate::vehicle::vehicle_type::VehicleType;
-
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransportPolicy {
     None,
     Car,

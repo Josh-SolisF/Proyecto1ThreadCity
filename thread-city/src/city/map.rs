@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use crate::cityblock::block::BlockBase;
 
 
@@ -79,7 +79,8 @@ impl Map {
 
     pub fn occupy_block(&mut self, coord: &Coord) -> bool {
         if let Some(block) = self.get_block_mut(coord) {
-            if !block.occupied {
+
+            if !block.occupied.load(Ordering::Acquire) {
                 block.occupied = AtomicBool::from(true);
                 return true;
             }
