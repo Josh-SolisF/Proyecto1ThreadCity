@@ -12,9 +12,11 @@ pub struct MyMutex {
 }
 
 impl MyMutex {
+
     pub fn is_locked(&self) -> bool {
-        todo!()
+        self.locked.load(Ordering::Acquire)
     }
+
 }
 
 impl MyMutex {

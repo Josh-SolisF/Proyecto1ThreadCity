@@ -12,9 +12,12 @@ impl TrafficLight {
             update_interval_ms
         }
     }
-    pub fn can_pass(&mut self) -> bool {
+
+    pub fn can_pass(&self) -> bool {
         !self.in_red
     }
+
+
     pub fn advance_time(&mut self, time_passed: usize) {
         self.time_passed_ms += time_passed;
         if self.time_passed_ms >= self.update_interval_ms {

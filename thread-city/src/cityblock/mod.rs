@@ -2,7 +2,7 @@ pub mod block;
 pub mod coord;
 pub mod transport_policy;
 pub mod block_type;
-mod traffic_light;
+pub mod traffic_light;
 pub mod bridge;
 pub mod dock;
 pub mod water;

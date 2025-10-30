@@ -1,6 +1,6 @@
 use std::os::raw::c_void;
 use libc::pthread_t;
-use crate::mythread::mythreadattr::MyThreadAttr;
+pub use crate::mythread::mythreadattr::MyThreadAttr;
 use crate::mythread::thread_state::ThreadState;
 use crate::scheduler::SchedulerType;
 
@@ -43,6 +43,11 @@ impl MyThread {
         self.ret_val = result;
         self.state = ThreadState::Terminated;
     }
+
+    pub fn id(&self) -> ThreadId {
+        self.id
+    }
+
 }
 
 

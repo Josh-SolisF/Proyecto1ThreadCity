@@ -1,9 +1,12 @@
+use std::collections::VecDeque;
+use std::sync::atomic::AtomicBool;
 use crate::cityblock::block::BlockBase;
 
 
 use crate::cityblock::block_type::BlockType;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::transport_policy::TransportPolicy;
+use crate::vehicle::vehicle_type::VehicleType;
 
 pub struct Map {
     pub grid: Vec<Vec<BlockBase>>,
@@ -23,7 +26,7 @@ impl Map {
                 let coord = Coord::new(x as u16, y as u16);
 
                 // ===============================
-                //  DEFINICIÓN DE BLOQUE FIJO
+                //  Rio central
                 // ===============================
                 let block_type = if y == height / 2 {
                     // Río central
@@ -55,7 +58,7 @@ impl Map {
                     id: (y * width + x),
                     position: coord,
                     policy,
-                    occupied: false,
+                    occupied: AtomicBool::from(false),
                     block_type,
                 });
             }
@@ -77,16 +80,47 @@ impl Map {
     pub fn occupy_block(&mut self, coord: &Coord) -> bool {
         if let Some(block) = self.get_block_mut(coord) {
             if !block.occupied {
-                block.occupied = true;
+                block.occupied = AtomicBool::from(true);
                 return true;
             }
         }
         false
     }
 
+    pub fn neighbors(&self, c: &Coord) -> Vec<Coord> {
+        let mut v = Vec::with_capacity(4);
+        let x = c.x as isize;
+        let y = c.y as isize;
+        let dirs = [(1,0),(-1,0),(0,1),(0,-1)];
+        for (dx,dy) in dirs {
+            let nx = x + dx;
+            let ny = y + dy;
+            if nx>=0 && ny>=0 && nx < self.width as isize && ny < self.height as isize {
+                v.push(Coord::new(nx as u16, ny as u16));
+            }
+        }
+        v
+    }
+
+
+    pub fn is_traversable_for(&self, coord: &Coord, vt: VehicleType) -> bool {
+        if let Some(b) = self.get_block(coord) {
+            match (b.block_type, vt) {
+                (BlockType::Water, VehicleType::Ship) => true,
+                (BlockType::Dock,  VehicleType::Ship) => true,
+                (BlockType::Bridge, _)                => true, // controller manda
+                (BlockType::Road,   VehicleType::Car | VehicleType::Ambulance | VehicleType::Truck) => true,
+                (BlockType::ShopBlock, VehicleType::Car | VehicleType::Ambulance) => true,
+                (BlockType::NuclearPlant, VehicleType::Truck) => true,
+                _ => false,
+            }
+        } else { false }
+    }
+
+
     pub fn release_block(&mut self, coord: &Coord) {
         if let Some(block) = self.get_block_mut(coord) {
-            block.occupied = false;
+            block.occupied = AtomicBool::from(false);
         }
     }
     pub fn print_layout(&self) {
@@ -108,6 +142,37 @@ impl Map {
         println!();
     }
 
+
+
+
+pub fn shortest_path(&self, origin: Coord, dest: Coord, vt: VehicleType) -> Option<Vec<Coord>> {
+    let mut prev = vec![vec![None::<Coord>; self.width]; self.height];
+    let mut q = VecDeque::new();
+    q.push_back(origin);
+    prev[origin.y as usize][origin.x as usize] = Some(origin);
+
+    while let Some(u) = q.pop_front() {
+        if u == dest { break; }
+        for v in self.neighbors(&u) {
+            if !self.is_traversable_for(&v, vt) { continue; }
+            if prev[v.y as usize][v.x as usize].is_none() {
+                prev[v.y as usize][v.x as usize] = Some(u);
+                q.push_back(v);
+            }
+        }
+    }
+
+    if prev[dest.y as usize][dest.x as usize].is_none() { return None; }
+    // reconstrucción
+    let mut path = vec![dest];
+    let mut cur = dest;
+    while cur != origin {
+        cur = prev[cur.y as usize][cur.x as usize].unwrap();
+        path.push(cur);
+    }
+    path.reverse();
+    Some(path)
+}
 }
 
 /*

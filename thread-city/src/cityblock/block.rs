@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicBool;
 use crate::cityblock::block_type::BlockType;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::transport_policy::TransportPolicy;
@@ -6,11 +7,29 @@ pub struct BlockBase {
     pub(crate) id: usize,
     pub(crate) position: Coord,
     pub(crate) policy: TransportPolicy,
-    pub(crate) occupied: bool,
+    pub(crate) occupied: AtomicBool,
     pub(crate) block_type: BlockType,
 }
 
 impl BlockBase {
+
+
+    pub fn new(
+        id: usize,
+        position: Coord,
+        policy: TransportPolicy,
+        block_type: BlockType,
+    ) -> Self {
+        Self {
+            id,
+            position,
+            policy,
+            occupied: AtomicBool::new(false),
+            block_type,
+        }
+    }
+
+
     pub fn update(&mut self, delta_time_ms: usize) {
         // Cada tipo de bloque podría reaccionar distinto:
         match self.block_type {
@@ -25,3 +44,15 @@ impl BlockBase {
         }
     }
 }
+
+impl Default for BlockBase {
+    fn default() -> Self {
+        Self::new(
+            0,
+            Coord::new(0, 0),
+            TransportPolicy::Any,
+            BlockType::Road,
+        )
+    }
+}
+
