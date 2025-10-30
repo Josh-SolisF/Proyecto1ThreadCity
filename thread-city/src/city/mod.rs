@@ -1,7 +1,8 @@
 use mypthreads::mythread::mypthread;
 use mypthreads::mythread::mypthread::MyPThread;
-use mypthreads::{RoundRobinScheduler, Scheduler};
-use mypthreads::scheduler::{LotteryScheduler, RealTimeScheduler};
+use mypthreads::{LotteryScheduler, RoundRobinScheduler, Scheduler};
+use mypthreads::scheduler::{RealTimeScheduler};
+use mypthreads::scheduler::round_robin::RRScheduler;
 use crate::city::map::Map;
 
 pub mod supply_kind;
@@ -15,15 +16,18 @@ pub struct ThreadCity {
 impl ThreadCity {
     pub fn new() -> ThreadCity {
         let schedulers: Vec<Box<dyn Scheduler>> = vec![
-            Box::new(RoundRobinScheduler),
-            Box::new(LotteryScheduler),
-            Box::new(RealTimeScheduler),
+            Box::new(RRScheduler::new()),
+            Box::new(LotteryScheduler::new()),
+            Box::new(RealTimeScheduler::new()),
         ];
+        let map = Map::build_default();
+
         ThreadCity {
             map: Map::build_default(),
-            my_pthread: MyPThread::new(schedulers),
+            my_pthread: MyPThread::new(),
         }
     }
+
 
     pub fn start_simulation(&mut self) {
         todo!("Simular")
@@ -42,7 +46,12 @@ impl ThreadCity {
     }
 
     pub fn update_status(&mut self) {
-        todo!("Debe avanzar el tiempo de simulación para cada elemento que requiera del tiempo para funcionar.")
+        // avanzar tiempo global
+        for row in &mut self.map.grid {
+            for block in row {
+                block.update(100); // avanzar 100 ms por ciclo
+            }
+        }
     }
 
     pub fn pause_simulation(&mut self) {
@@ -56,4 +65,4 @@ impl ThreadCity {
     pub fn stop_simulation(&mut self) -> Result<(), String> {
         todo!("Debe detener a simulación y retornar estadisticas")
     }
-}
+        }

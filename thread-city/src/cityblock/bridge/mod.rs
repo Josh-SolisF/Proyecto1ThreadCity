@@ -18,26 +18,36 @@ impl Bridge {
             mutex,
         }
     }
-    
-    /// Consulta el estado de locked del mutex del puente
-    pub fn ask_pass() -> bool {
-        todo!()
-    } 
-    /// Hace lock al mutex dándole el recurso al vehículo que lo haya pedido
-    pub fn enter_bridge() -> bool {
-        todo!()
+
+    pub fn ask_pass(&self) -> bool {
+        !self.mutex.is_locked() && self.control.can_enter()
     }
-    /// Hace unlock al mutex.
-    pub fn exit_bridge() -> bool {
-        todo!()
+
+    pub fn enter_bridge(&mut self) -> bool {
+        if self.ask_pass() {
+            self.mutex.lock(());
+            true
+        } else {
+            false
+        }
     }
-    /// Hace lock al mutex dándole el recurso al barco que lo haya pedido
-    pub fn open_bridge() -> bool {
-        todo!()
+
+    pub fn exit_bridge(&mut self) -> bool {
+        self.mutex.unlock();
+        true
     }
-    /// Hace unlock al mutex.
-    pub fn close_bridge() -> bool {
-        todo!()
+
+    pub fn open_bridge(&mut self) -> bool {
+        // Barco solicita abrir el puente 3
+        self.control.set_open(false);
+        self.mutex.lock(());
+        true
+    }
+
+    pub fn close_bridge(&mut self) -> bool {
+        self.control.set_open(true);
+        self.mutex.unlock(None);
+        true
     }
     
 }
