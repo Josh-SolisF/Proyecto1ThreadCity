@@ -7,3 +7,5 @@ mod car;
 mod vehicle_runner;
 mod spawn;
 mod Motor;
+mod Motortest;
+mod Vehicletest;
