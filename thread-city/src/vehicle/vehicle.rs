@@ -52,6 +52,34 @@ impl Vehicle {
         }
     }
 
+    // Constructor "compat": firma vieja, pone defaults y llama al completo
+    pub fn new_defaults(
+        origin: Coord,
+        destination: Coord,
+        speed: u8,
+        vehicle_type: VehicleType,
+        thread: MyThread,
+    ) -> Vehicle {
+        const DEFAULT_DIRECTION: i8 = 1;
+        // si quieres, ajusta por tipo:
+        fn default_length_for(ty: VehicleType) -> f32 {
+            use VehicleType::*;
+            match ty {
+                Car => 4.5,
+                Truck => 12.0,
+                Bus => 10.0,
+                Bike => 2.0,
+                _ => 4.0,
+            }
+        }
+
+        let length = default_length_for(vehicle_type);
+        Self::new(
+            origin, destination, speed, vehicle_type,
+            DEFAULT_DIRECTION, length, thread,
+        )
+    }
+
     pub fn change_speed(&mut self, speed: u8) {
         self.speed = speed;
         // si quieres mantener motion en sync:
