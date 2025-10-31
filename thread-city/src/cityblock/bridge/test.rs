@@ -56,8 +56,12 @@ mod tests {
         Vehicle::new(
             Coord::new(0, 0),
             Coord::new(10, 0),
-            1,
-            ty,
+
+            1,                  // speed: u8
+            ty,                 // VehicleType
+            1_i8,               // direction: i8  (1 hacia adelante, -1 hacia atrás)
+            4.5_f32,            // length: f32    (ej.: 4.5 m para un auto)
+
             mk_thread_with_id(tid),
         )
     }
