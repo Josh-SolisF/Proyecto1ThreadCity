@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 mypthreads = { path = "../mypthreads" }
+length = "0.2.3"
+direction = "0.18.1"

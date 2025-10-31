@@ -4,3 +4,6 @@ pub mod cargotruck;
 mod ambulance;
 mod ship;
 mod car;
+mod vehicle_runner;
+mod spawn;
+mod Motor;
