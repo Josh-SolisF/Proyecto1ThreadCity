@@ -5,5 +5,5 @@ pub enum TransportPolicy {
     NoVehicles,
     Car,
     Ship,
-    Any,
+    AnyVehicle,
 }

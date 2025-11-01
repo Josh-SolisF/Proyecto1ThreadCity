@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod basics {
     use crate::cityblock::Block;
-    use crate::cityblock::block_type::BlockType::{Dock, Road, Shops, Water};
+    use crate::cityblock::block_type::BlockType::{Dock, NuclearPlant, Road, Shops, Water};
     use crate::cityblock::dock::DockBlock;
+    use crate::cityblock::nuclearplant::NuclearPlantBlock;
     use crate::cityblock::transport_policy::TransportPolicy::{Car, NoVehicles, Ship};
     use crate::cityblock::road::RoadBlock;
     use crate::cityblock::shopblock::shop::Shop;
@@ -54,50 +55,76 @@ mod basics {
         assert_eq!(&Dock, dock.get_type());
         assert_eq!(&Ship, dock.get_policy());
     }
+
+    #[test]
+    fn test_create_nuclear_block() {
+        let id: usize = 1;
+        let dl_policy: usize = 35;
+        let update_interval: usize = 33;
+        let plant = NuclearPlantBlock::new(id, dl_policy, update_interval);
+        assert_eq!(plant.get_type(), &NuclearPlant);
+        assert_eq!(plant.get_id(), &id);
+        assert_eq!(plant.get_policy(), &NoVehicles);
+    }
 }
 
 #[cfg(test)]
-mod nuclear {
-    use std::rc::Rc;
-    use crate::cityblock::map::Map;
+mod bridge {
+    use mypthreads::mythread::mymutex::MyMutex;
+    use mypthreads::mythread::mypthread::MyPThread;
     use crate::cityblock::Block;
-    use crate::cityblock::block_type::BlockType::NuclearPlant;
-    use crate::cityblock::coord::Coord;
-    use crate::cityblock::nuclearplant::NuclearPlantBlock;
-    use crate::cityblock::road::RoadBlock;
-    use crate::cityblock::transport_policy::TransportPolicy::NoVehicles;
-    use crate::cityblock::water::WaterBlock;
+    use crate::cityblock::block_type::BlockType::Bridge;
+    use crate::cityblock::bridge::BridgeBlock;
+    use crate::cityblock::bridge::control::Control;
+    use crate::cityblock::transport_policy::TransportPolicy::{AnyVehicle, NoVehicles};
 
     #[test]
-    fn test_create_nuclear() {
-        let id: usize = 33;
+    fn test_create_control_with_traffic() {
+        let in_int: usize = 10;
+        let out_int: usize = 12;
+        let control = Control::with_traffic(in_int, out_int);
 
-        let mut custom: Vec<Vec<Box<dyn Block>>> = Vec::new();
-        let mut arr1: Vec<Box<dyn Block>> =
-            vec![Box::new(RoadBlock::new(1)), Box::new(RoadBlock::new(2))];
-        let mut arr2: Vec<Box<dyn Block>> =
-            vec![Box::new(RoadBlock::new(id)), Box::new(WaterBlock::new(3))];
-
-        custom.push(arr1);
-        custom.push(arr2);
-        let mut city_map = Rc::new(Map::build_custom(custom));
-
-        let plant_coord = Coord::new(1, 0);
-        let dl_policy: usize = 35;
-        let update_interval: usize = 33;
-
-        let mut plant = NuclearPlantBlock::new(id, dl_policy, update_interval);
-        city_map.grid[plant_coord.y as usize][plant_coord.x as usize] = Box::new(plant);
-
-        city_map.grid[plant_coord.y as usize][plant_coord.x as usize].;
-        let test = city_map.grid[plant_coord.x as usize][plant_coord.y as usize].get_type();
-        plant.attach_map(city_map.clone());
-        assert_eq!(test, &NuclearPlant);
+        assert_eq!(false, control.has_yield);
+        assert_eq!(in_int, control.in_traffic_light.unwrap().update_interval_ms);
+        assert_eq!(out_int, control.out_traffic_light.unwrap().update_interval_ms);
     }
-
     #[test]
-    #[should_panic(expected = "Nuclear plant: can´t override")]
-    fn test_panic_on_create_nuclear_by_id_mismatch() {
-        todo!()
+    fn test_create_control_without_traffic_nor_yield() {
+        let control = Control::without_traffic(false);
+
+        assert_eq!(false, control.has_yield);
+        assert_eq!(None, control.in_traffic_light);
+        assert_eq!(None, control.out_traffic_light);
+    }
+    #[test]
+    fn test_create_control_with_yield() {
+        let control = Control::without_traffic(true);
+        assert_eq!(true, control.has_yield);
+        assert_eq!(None, control.in_traffic_light);
+        assert_eq!(None, control.out_traffic_light);
+
+    }
+    
+    #[test]
+    fn test_create_bridge() {
+        let id = 1;
+        let ctrl = Control::without_traffic(false);
+        let mut mutex = MyMutex::new();
+        unsafe {
+            MyPThread::new().my_mutex_init(&mut mutex as *mut MyMutex, std::ptr::null());
+        }
+        
+        let mut bridge = BridgeBlock::new(id, ctrl, mutex);
+        
+        assert_eq!(&id, bridge.get_id());
+        assert_eq!(&Bridge, bridge.get_type());
+        assert_eq!(&AnyVehicle, bridge.get_policy());
+        assert!(bridge.mutex.is_some());
+        
+        if let Some(mut mute) = bridge.return_mutex(){
+            unsafe { MyPThread::new().my_mutex_destroy(&mut mute as *mut MyMutex) ; }
+        } else { panic!("Bridge isn't returning the mutex") };
+        
+        assert!(bridge.mutex.is_none());
     }
 }

@@ -12,6 +12,7 @@ pub struct Map {
     pub(crate) height: usize,
     pub(crate) width: usize,
 }
+
 impl Map {
     pub fn build_default() -> Map {
         todo!("Generar la ciudad a mano zzzz...")

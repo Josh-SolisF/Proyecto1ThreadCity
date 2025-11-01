@@ -1,4 +1,4 @@
-mod control;
+pub mod control;
 mod traffic_light;
 
 use std::any::Any;
@@ -7,18 +7,20 @@ use mypthreads::mythread::mythread::MyThread;
 use crate::cityblock::Block;
 use crate::cityblock::block::BlockBase;
 use crate::cityblock::block_type::BlockType;
+use crate::cityblock::block_type::BlockType::Bridge;
 use crate::cityblock::bridge::control::Control;
 use crate::cityblock::transport_policy::TransportPolicy;
+use crate::cityblock::transport_policy::TransportPolicy::AnyVehicle;
 use crate::vehicle::vehicle::Vehicle;
 use crate::vehicle::vehicle_type::VehicleType;
 
-pub struct Bridge {
+pub struct BridgeBlock {
     pub(crate) base: BlockBase,
     pub(crate) control: Control,
-    pub(crate) mutex: MyMutex,
+    pub(crate) mutex: Option<MyMutex>,
 }
 
-impl Block for Bridge {
+impl Block for BridgeBlock {
     fn get_id(&self) -> &usize {
         &self.base.id
     }
@@ -40,9 +42,13 @@ impl Block for Bridge {
     }
 }
 
-impl Bridge {
-    pub fn new(block: BlockBase, control: Control, mut mutex: MyMutex) -> Self {
-        todo!()
+impl BridgeBlock {
+    pub fn new(id: usize, control: Control, bridge_mutex: MyMutex) -> Self {
+        Self {
+            base: BlockBase::new(id, AnyVehicle, Bridge),
+            control,
+            mutex: Some(bridge_mutex),
+        }
     }
 
     pub fn ask_pass(&self, thread: &MyThread, vehicle_ty: VehicleType) -> bool {
@@ -63,5 +69,9 @@ impl Bridge {
 
     pub fn close_bridge(&mut self, caller: &MyThread) -> bool {
         todo!()
+    }
+
+    pub fn return_mutex(&mut self) -> Option<MyMutex> {
+        self.mutex.take()
     }
 }

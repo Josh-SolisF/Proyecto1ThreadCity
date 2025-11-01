@@ -25,7 +25,6 @@ pub struct NuclearPlantBlock {
     pub(crate) update_interval_ms: usize,
     pub(crate) requires: Vec<SupplySpec>,
     pub(crate) scheduled_trucks: Vec<CargoTruck>,
-    pub(crate) city_map: Option<Rc<RefCell<Map>>>,
 }
 
 impl Block for NuclearPlantBlock {
@@ -61,23 +60,24 @@ impl NuclearPlantBlock {
             time_passed_ms: 0,
             update_interval_ms,
             scheduled_trucks: Vec::new(),
-            city_map: None,
         }
-    }
-    pub fn attach_map(&mut self,city_map: Rc<RefCell<Map>>) {
-        self.city_map = Some(city_map);
     }
 
-    pub fn advance_time(&mut self, time_passed: usize) {
-        if self.city_map.is_none() {
-            panic!("La planta núclear con ID {:?} no tiene un mapa integrado", self.base.id);
-        }
-        if self.plant_status == Boom { return }
+    /// #Return
+    /// 'None' in case it doesn't require a cargotruck
+    /// 'Some(SupplySpec)' in case it needs a cargotruck to be sent
+    pub fn advance_time(&mut self, time_passed: usize) -> Option<SupplySpec> {
+        if self.plant_status == Boom { return None; }
         self.time_passed_ms += time_passed;
         if self.time_passed_ms >= self.update_interval_ms {
             self.time_passed_ms -= self.update_interval_ms;
             self.check_requirements();
         }
+        None
+    }
+
+    pub fn add_truck_status(&mut self, truck: CargoTruck) {
+        self.scheduled_trucks.push(truck);
     }
 
     pub fn commit_delivery(&mut self, truck: CargoTruck) {
@@ -90,11 +90,11 @@ impl NuclearPlantBlock {
         }
     }
 
-    fn check_requirements(&mut self) {
+    fn check_requirements(&mut self) -> Option<SupplySpec> {
         let next = self.next_status();
         self.plant_status = next;
 
-        if next == Boom { return }
+        if next == Boom { return None}
 
         if next == AtRisk {
             todo!("Generar 1 o 2 camiones con requerimientos de la planta, usando el mapa claro esta")
@@ -102,6 +102,8 @@ impl NuclearPlantBlock {
         if next == Critical {
             todo!("Darle el máximo de prioridad a los camiones")
         }
+
+        None
 
     }
     fn next_status(&mut self) -> PlantStatus {

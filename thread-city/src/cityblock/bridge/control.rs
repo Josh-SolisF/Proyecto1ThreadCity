@@ -12,12 +12,11 @@ impl Control {
     pub fn with_traffic(
         interval_in: usize,
         interval_out: usize,
-        has_yield: bool,
     ) -> Self {
         Self {
             in_traffic_light: Some(TrafficLight::new(interval_in)),
             out_traffic_light: Some(TrafficLight::new(interval_out)),
-            has_yield,
+            has_yield: false,
         }
     }
 
