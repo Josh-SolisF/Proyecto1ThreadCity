@@ -90,6 +90,7 @@ name = "thread-city"
 version = "0.1.0"
 dependencies = [
  "mypthreads",
+ "rand",
 ]
 
 [[package]]

@@ -11,7 +11,7 @@ use crate::cityblock::block_type::BlockType::Bridge;
 use crate::cityblock::bridge::control::Control;
 use crate::cityblock::transport_policy::TransportPolicy;
 use crate::cityblock::transport_policy::TransportPolicy::AnyVehicle;
-use crate::vehicle::vehicle::Vehicle;
+use crate::vehicle::vehicle::VehicleBase;
 use crate::vehicle::vehicle_type::VehicleType;
 
 pub struct BridgeBlock {
@@ -55,11 +55,11 @@ impl BridgeBlock {
         todo!()
     }
 
-    pub fn enter_bridge(&mut self, vehicle: &Vehicle) -> bool {
+    pub fn enter_bridge(&mut self, vehicle: &VehicleBase) -> bool {
         todo!()
     }
 
-    pub fn exit_bridge(&mut self, vehicle: &Vehicle) -> bool {
+    pub fn exit_bridge(&mut self, vehicle: &VehicleBase) -> bool {
         todo!()
     }
 

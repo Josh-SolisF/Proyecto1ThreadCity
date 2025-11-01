@@ -11,7 +11,7 @@ pub struct ThreadCity {
 impl ThreadCity {
     pub fn new() -> ThreadCity {
         ThreadCity {
-            map: Map::build_default(),
+            map: Map::build_custom(vec![]),
             my_pthread: MyPThread::new(),
         }
     }

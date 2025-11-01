@@ -7,7 +7,7 @@ pub mod dock;
 pub mod water;
 pub mod shopblock;
 pub mod nuclearplant;
-mod road;
+pub mod road;
 mod tests;
 pub mod map;
 
