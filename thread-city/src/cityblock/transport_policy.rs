@@ -1,7 +1,9 @@
+use crate::vehicle::vehicle_type::VehicleType;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransportPolicy {
-    None,
+    NoVehicles,
     Car,
-    Truck,
     Ship,
     Any,
 }

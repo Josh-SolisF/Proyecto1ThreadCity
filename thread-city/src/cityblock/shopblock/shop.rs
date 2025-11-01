@@ -1,12 +1,11 @@
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Shop {
-    pub(crate) id: usize,
     pub(crate) name: String,
 }
 
 impl Shop {
-    pub fn new(id: usize, name: String) -> Shop {
+    pub fn new(name: String) -> Shop {
         Self {
-            id,
             name
         }
     }

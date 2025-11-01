@@ -1,15 +1,15 @@
 use std::any::Any;
 use crate::cityblock::{Block, BlockBase};
 use crate::cityblock::block_type::BlockType;
-use crate::cityblock::block_type::BlockType::Water;
+use crate::cityblock::block_type::BlockType::Road;
 use crate::cityblock::transport_policy::TransportPolicy;
-use crate::cityblock::transport_policy::TransportPolicy::Ship;
+use crate::cityblock::transport_policy::TransportPolicy::Car;
 
-pub struct WaterBlock {
+pub struct RoadBlock {
     pub(crate) base: BlockBase,
 }
 
-impl Block for WaterBlock {
+impl Block for RoadBlock {
     fn get_id(&self) -> &usize {
         &self.base.id
     }
@@ -31,10 +31,10 @@ impl Block for WaterBlock {
     }
 }
 
-impl WaterBlock {
-    pub fn new(id: usize) -> Self {
+impl RoadBlock {
+    pub fn new(id: usize) -> RoadBlock {
         Self {
-            base: BlockBase::new(id, Ship, Water),
+            base: BlockBase::new(id, Car, Road),
         }
     }
 }

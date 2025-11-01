@@ -1,6 +1,6 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockType {
-    ShopBlock,
+    Shops,
     Water,
     Dock,
     Road,
