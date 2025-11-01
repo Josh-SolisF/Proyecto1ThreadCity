@@ -1,4 +1,3 @@
-pub mod r#trait;
 pub mod round_robin;
 pub mod lottery;
 pub mod scheduler_type;
@@ -21,7 +20,7 @@ pub trait Scheduler {
     /// Saca el siguiente hilo a ejecutar (None si vacío)
     fn pick_next(&mut self) -> Option<ThreadId>;
 
-    /// Eventos 
+    /// Eventos
     fn on_block(&mut self, _tid: ThreadId) {}
     fn on_exit(&mut self, _tid: ThreadId) {}
 

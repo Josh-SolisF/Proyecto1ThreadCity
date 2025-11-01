@@ -4,3 +4,5 @@ pub mod cargotruck;
 mod ambulance;
 mod ship;
 mod car;
+mod tests;
+pub mod traffic_handler;

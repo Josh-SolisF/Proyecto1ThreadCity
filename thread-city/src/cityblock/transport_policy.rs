@@ -1,7 +1,22 @@
+use crate::vehicle::vehicle_type::VehicleType;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransportPolicy {
-    None,
+    NoVehicles,
     Car,
     Truck,
     Ship,
-    Any,
+    AnyVehicle,
+}
+
+impl TransportPolicy {
+    pub fn can_pass(&self, v: VehicleType) -> bool {
+        match self {
+            TransportPolicy::NoVehicles => {false},
+            TransportPolicy::Car => {matches!(v, VehicleType::CarE| VehicleType::TruckE | VehicleType::AmbulanceE)},
+            TransportPolicy::Ship => {matches!(v, VehicleType::ShipE)},
+            TransportPolicy::Truck => {matches!(v, VehicleType::TruckE)},
+            TransportPolicy::AnyVehicle => {true},
+        }
+    }
 }

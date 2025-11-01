@@ -2,9 +2,13 @@ pub mod block;
 pub mod coord;
 pub mod transport_policy;
 pub mod block_type;
-mod traffic_light;
 pub mod bridge;
 pub mod dock;
 pub mod water;
 pub mod shopblock;
 pub mod nuclearplant;
+pub mod road;
+mod tests;
+pub mod map;
+
+pub use block::{Block, BlockBase};

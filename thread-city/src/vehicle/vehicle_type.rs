@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VehicleType {
-    Car,
-    Ambulance,
-    Truck,
-    Ship,
+    CarE,
+    AmbulanceE,
+    TruckE,
+    ShipE,
 }

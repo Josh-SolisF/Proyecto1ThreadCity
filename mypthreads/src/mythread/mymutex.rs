@@ -10,6 +10,15 @@ pub struct MyMutex {
     pub(crate) locked: AtomicBool,
     pub(crate) wait_queue: VecDeque<ThreadId>,
 }
+
+impl MyMutex {
+
+    pub fn is_locked(&self) -> bool {
+        self.locked.load(Ordering::Acquire)
+    }
+
+}
+
 impl MyMutex {
     pub fn new() -> Self {
         Self {
@@ -27,6 +36,8 @@ impl MyMutex {
 
         Ok as c_int
     }
+
+
     pub unsafe fn destroy(&mut self) -> c_int {
         if !self.initialized || self.locked.load(Ordering::Acquire) || !self.wait_queue.is_empty() {
             return MutexInvalidState as c_int;

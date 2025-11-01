@@ -1,3 +1,4 @@
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrafficLight {
     pub(crate) in_red: bool,
     pub(crate) time_passed_ms: usize,
@@ -12,7 +13,8 @@ impl TrafficLight {
             update_interval_ms
         }
     }
-    pub fn can_pass(&mut self) -> bool {
+
+    pub fn can_pass(&self) -> bool {
         !self.in_red
     }
     pub fn advance_time(&mut self, time_passed: usize) {
