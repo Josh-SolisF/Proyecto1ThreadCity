@@ -6,6 +6,7 @@ pub struct Control {
     pub(crate) in_traffic_light: Option<TrafficLight>,
     pub(crate) out_traffic_light: Option<TrafficLight>,
     pub has_yield: bool,
+    pub can_pass_boats: bool,
 }
 
 impl Control {
@@ -17,6 +18,7 @@ impl Control {
             in_traffic_light: Some(TrafficLight::new(interval_in)),
             out_traffic_light: Some(TrafficLight::new(interval_out)),
             has_yield: false,
+            can_pass_boats: false,
         }
     }
 
@@ -27,6 +29,7 @@ impl Control {
             in_traffic_light: None,
             out_traffic_light: None,
             has_yield,
+            can_pass_boats: !has_yield,
         }
     }
 

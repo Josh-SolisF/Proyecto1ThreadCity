@@ -10,7 +10,7 @@ use crate::cityblock::block_type::BlockType;
 use crate::cityblock::block_type::BlockType::Bridge;
 use crate::cityblock::bridge::control::Control;
 use crate::cityblock::transport_policy::TransportPolicy;
-use crate::cityblock::transport_policy::TransportPolicy::AnyVehicle;
+use crate::cityblock::transport_policy::TransportPolicy::{AnyVehicle, Car};
 use crate::vehicle::vehicle::VehicleBase;
 use crate::vehicle::vehicle_type::VehicleType;
 
@@ -44,8 +44,9 @@ impl Block for BridgeBlock {
 
 impl BridgeBlock {
     pub fn new(id: usize, control: Control, bridge_mutex: MyMutex) -> Self {
+        let policy : TransportPolicy = if control.can_pass_boats { AnyVehicle } else { Car };
         Self {
-            base: BlockBase::new(id, AnyVehicle, Bridge),
+            base: BlockBase::new(id, policy, Bridge),
             control,
             mutex: Some(bridge_mutex),
         }
