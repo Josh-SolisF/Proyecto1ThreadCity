@@ -2,6 +2,7 @@ use mypthreads::mythread::mypthread::MyPThread;
 use crate::cityblock::map::Map;
 
 pub mod supply_kind;
+mod map;
 
 pub struct ThreadCity {
     pub map: Map,
