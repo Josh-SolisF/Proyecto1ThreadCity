@@ -87,8 +87,12 @@ impl BridgeBlock {
 
         match self.mutex.as_mut() {
             Some(m) => {
-                if m.try_lock(caller) {
+
+                let rc: i32 = m.try_lock(caller);
+                if rc == 0 {
                     EntryOutcome::Granted // carril reservado
+
+
                 } else {
                     EntryOutcome::Wait // ocupado, reintenta luego
                 }
