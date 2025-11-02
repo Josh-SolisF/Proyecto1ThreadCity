@@ -17,31 +17,29 @@ pub fn c(r: usize, k: usize) -> crate::cityblock::coord::Coord {
 }
 
 /// 1x4: Road - Road - Road - Shop
-pub fn build_line_map_1x4() -> Map {
+
+pub fn build_column_map_4x1() -> Map {
+    // 4 filas, 1 columna ⇒ grid.len() = 4 (height), grid[0].len() = 1 (width)
     let mut grid: Vec<Vec<Box<dyn Block>>> = Vec::new();
-    // fila 0
-    let row0: Vec<Box<dyn Block>> = vec![
-        Box::new(RoadBlock::new(0)),                  // (0,0)
-        Box::new(RoadBlock::new(1)),                  // (0,1)
-        Box::new(RoadBlock::new(2)),                  // (0,2)
-        Box::new(ShopBlock::new(3, Vec::new())),      // (0,3)
-    ];
-    grid.push(row0);
+    grid.push(vec![ Box::new(RoadBlock::new(0)) ]); // (x=0, y=0)
+    grid.push(vec![ Box::new(RoadBlock::new(1)) ]); // (0,1)
+    grid.push(vec![ Box::new(RoadBlock::new(2)) ]); // (0,2)
+    grid.push(vec![ Box::new(ShopBlock::new(3, Vec::new())) ]); // (0,3)
     Map::build_custom(grid)
 }
 
+
 /// 1x3: Road - Bridge - Road  (útil para probar NextIsBridge)
-pub fn build_line_map_with_bridge() -> Map {
+
+pub fn build_column_map_with_bridge() -> Map {
     let mut grid: Vec<Vec<Box<dyn Block>>> = Vec::new();
-    let control = Control::without_traffic(false); // sin semáforo, un carril por mutex
-    let row0: Vec<Box<dyn Block>> = vec![
-        Box::new(RoadBlock::new(10)),                        // (0,0)
-        Box::new(BridgeBlock::new(11, control, MyMutex::new())), // (0,1)
-        Box::new(RoadBlock::new(12)),                        // (0,2)
-    ];
-    grid.push(row0);
+    grid.push(vec![ Box::new(RoadBlock::new(10)) ]); // (0,0)
+    let control = Control::without_traffic(false);   // policy: AnyVehicle (cars allowed)
+    grid.push(vec![ Box::new(BridgeBlock::new(11, control, MyMutex::new())) ]); // (0,1)
+    grid.push(vec![ Box::new(RoadBlock::new(12)) ]); // (0,2)
     Map::build_custom(grid)
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -56,8 +54,7 @@ mod tests {
     {
         // Para prestar 'static en tests, guardamos el mapa en un Box y luego
         // hacemos 'leak' controlado SOLO dentro del test (válido en tests).
-        let mut map = Box::new(build_line_map_1x4());
-        let map_ref: &'static mut Map = Box::leak(map);
+        let mut map = Box::new(build_column_map_4x1());        let map_ref: &'static mut Map = Box::leak(map);
 
         let mut handler = TrafficHandler::new(map_ref, vec![]);
         let tid: ThreadId = 1; // ajusta si ThreadId no es usize
@@ -114,8 +111,7 @@ mod tests {
         // Dos carros en línea: A en (0,0), B en (0,1). Destino común en (0,3).
         // Con tick de 1000ms, B debería moverse primero a (0,2) y A queda bloqueado;
         // en el siguiente tick, A ya puede avanzar a (0,1).
-        let mut map = Box::new(build_line_map_1x4());
-        let map_ref: &'static mut Map = Box::leak(map);
+        let mut map = Box::new(build_column_map_4x1());        let map_ref: &'static mut Map = Box::leak(map);
         let mut handler = TrafficHandler::new(map_ref, vec![]);
 
         let tid_a: ThreadId = 10;
@@ -156,7 +152,7 @@ mod tests {
     #[test]
     fn plan_next_marks_bridge_as_special() {
         // Camino: Road -> Bridge -> Road. El plan_next desde (0,0) debe devolver NextIsBridge((0,1)).
-        let mut map = build_line_map_with_bridge();
+        let mut map = build_column_map_with_bridge();
 
         let mut car = crate::vehicle::car::Car::new(c(0,0), c(0,2), 1);
         let tid: ThreadId = 99;
