@@ -30,4 +30,9 @@ impl Vehicle for Car {
         self.base.calculate_path(map);
         self.base.thread_id = Some(thread_id);
     }
+
+
+    fn base(&self) -> &VehicleBase { &self.base }
+    fn base_mut(&mut self) -> &mut VehicleBase { &mut self.base }
+
 }

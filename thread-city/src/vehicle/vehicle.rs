@@ -5,6 +5,22 @@ use crate::cityblock::coord::Coord;
 use crate::cityblock::map::Map;
 use crate::vehicle::vehicle_type::VehicleType;
 
+
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MoveIntent {
+    Arrived,
+    NoPath,
+    BlockedByPolicy,               // el mapa no permite ese tipo de vehículo
+    NextIsBridge { coord: Coord }, // hook para handler de puentes
+    AdvanceTo { coord: Coord },    // carretera/tienda/etc.
+}
+
+
+
+pub type Occupancy = HashMap<Coord, ThreadId>;
+
 pub struct VehicleBase {
     pub(crate) current_position: Coord,
     pub(crate) vehicle_type: VehicleType,
@@ -12,6 +28,10 @@ pub struct VehicleBase {
     pub(crate) speed: u8,
     pub(crate) path: Option<Vec<Coord>>,
     pub(crate) thread_id: Option<ThreadId>,
+
+    /// Índice de la siguiente celda destino en `path`
+    path_idx: usize,
+
 }
 impl VehicleBase {
     pub fn new(origin: Coord, destination: Coord, speed: u8, vehicle_type: VehicleType) -> VehicleBase {
@@ -22,6 +42,8 @@ impl VehicleBase {
             speed,
             path: None,
             thread_id: None,
+            path_idx: 0,
+
         }
     }
     
@@ -67,13 +89,84 @@ impl VehicleBase {
                 }
             }
         }
-        
-        self.path = None
+
+
+        if let Some(ref p) = self.path {
+            // Colocar el índice en la PRIMERA celda distinta del origen
+            self.path_idx = if p.len() > 1 { 1 } else { 0 };
+        }
+
     }
 
+
+
+    #[inline]
+    pub fn current(&self) -> Coord { self.current_position }
+
+    #[inline]
+    pub fn thread(&self) -> ThreadId { self.thread_id.expect("Vehicle without ThreadId") }
+
+
+    #[inline]
+    pub fn speed_cps(&self) -> f32 { self.speed.max(1) as f32 } // celdas/seg
+
+    /// Ver la siguiente celda objetivo
+    #[inline]
+    fn next_cell(&self) -> Option<Coord> {
+        self.path.as_ref().and_then(|p| p.get(self.path_idx)).cloned()
+    }
+
+
+    /// Propone el próximo movimiento (no altera estado global).
+    pub fn plan_next(&self, map: &Map) -> MoveIntent {
+        if self.current_position == self.destination {
+            return MoveIntent::Arrived;
+        }
+        let Some(path) = self.path.as_ref() else { return MoveIntent::NoPath; };
+        if self.path_idx >= path.len() {
+            return MoveIntent::NoPath;
+        }
+        let next = path[self.path_idx];
+
+        // Política del bloque destino
+        if let Some(pol) = map.policy_at(next) {
+            if !pol.can_pass(self.vehicle_type) {
+                return MoveIntent::BlockedByPolicy;
+            }
+        } else {
+            return MoveIntent::BlockedByPolicy;
+        }
+
+        // ¿Es puente?
+        if map.is_bridge(next) {
+            return MoveIntent::NextIsBridge { coord: next };
+        }
+
+        MoveIntent::AdvanceTo { coord: next }
+    }
+
+    /// Commit del avance (ahora sí cambia su estado interno).
+    /// Lo llama **solo** el TrafficHandler cuando ya se aseguró ocupación/permiso.
+    pub fn commit_advance(&mut self, new_pos: Coord) {
+        self.current_position = new_pos;
+        if let Some(ref p) = self.path {
+            self.path_idx = (self.path_idx + 1).min(p.len());
+        }
+    }
+
+
+
 }
+
+// Trait Vehicle (agrego tick para delegar a advance_time)
 pub trait Vehicle: Any {
     fn get_type(&self) -> &VehicleType;
     fn as_any(&self) -> &dyn Any;
     fn initialize(&mut self, map: &Map, tid: ThreadId);
+
+    fn base(&self) -> &VehicleBase;
+    fn base_mut(&mut self) -> &mut VehicleBase;
+
 }
+
+

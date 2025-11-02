@@ -25,6 +25,12 @@ impl Map {
             width,
         }
     }
+
+    pub fn block_type_at(&self, c: Coord) -> Option<BlockType> {
+        self.cell_at(c).map(|cell| cell.block_type)
+    }
+    
+
     pub fn in_bounds(&self, coord: Coord) -> bool {
         coord.x >= 0 && coord.y >= 0 && coord.x < self.width as i16 && coord.y < self.height as i16
     }
