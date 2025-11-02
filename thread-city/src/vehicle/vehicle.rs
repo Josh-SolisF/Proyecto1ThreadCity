@@ -138,8 +138,13 @@ impl VehicleBase {
         }
 
         // ¿Es puente?
-        if map.is_bridge(next) {
-            return MoveIntent::NextIsBridge { coord: next };
+
+        if let Some(bt) = map.block_type_at(next) {
+            // Ajusta a tus variantes reales de Bridge
+            use crate::cityblock::block_type::BlockType::*;
+            if matches!(bt, Bridge | Bridge1 | Bridge2 | Bridge3) {
+                return MoveIntent::NextIsBridge { coord: next };
+            }
         }
 
         MoveIntent::AdvanceTo { coord: next }

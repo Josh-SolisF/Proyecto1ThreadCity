@@ -67,60 +67,114 @@ impl<'a> TrafficHandler<'a> {
     pub fn tick(&mut self, dt_ms: u64) {
         let dt = dt_ms as f32;
 
-        // Itera estable (o random si prefieres fairness)
+        // 1) Snapshot de TIDs para evitar problemas de préstamo del HashMap
         let tids: Vec<ThreadId> = self.vehicles.keys().cloned().collect();
 
-        for tid in tids {
-            let Some(v) = self.vehicles.get_mut(&tid) else { continue; };
+        // 2) Estructura con las decisiones planeadas (no aplicadas aún)
+        #[derive(Debug)]
+        enum Decision {
+            Arrived { tid: ThreadId },
+            Wait    { tid: ThreadId, step_ms: f32 },
+            MoveTo  { tid: ThreadId, step_ms: f32, from: Coord, to: Coord, is_bridge: bool },
+        }
+        let mut plan: Vec<Decision> = Vec::with_capacity(tids.len());
 
-            // 1) Acumular tiempo
-            let acc = self.time_acc.entry(tid).or_insert(0.0);
+        // ---------- FASE 1: PLAN ----------
+        for tid in &tids {
+            // Acumular tiempo para este vehículo
+            let acc = self.time_acc.entry(*tid).or_insert(0.0);
             *acc += dt;
 
-            let step_time = Self::step_ms(v.base().speed_cps());
-            if *acc < step_time {
-                continue; // aun no le toca moverse
+            // Necesitamos sólo un *préstamo inmutable* del vehículo para calcular step_time e intención
+            let Some(vref) = self.vehicles.get(tid) else { continue; };
+            let step_ms = Self::step_ms(vref.base().speed_cps());
+            if *acc < step_ms {
+                // Aún no le toca moverse -> nada que planear
+                continue;
             }
 
-            // 2) Intentar un paso (una celda)
-            match v.base().plan_next(self.map) {
+            // Consultamos intención SIN mutar el vehículo
+            let intent = vref.base().plan_next(self.map);
+            let from = vref.base().current();
+
+            match intent {
                 MoveIntent::Arrived => {
-                    // opcional: remover vehículo, contabilidad, etc.
+                    plan.push(Decision::Arrived { tid: *tid });
                 }
                 MoveIntent::NoPath | MoveIntent::BlockedByPolicy => {
-                    // no se mueve; puedes decidir si drenas el acc o lo mantienes
-                    *acc = step_time.min(*acc); // queda listo para reintentar pronto
+                    // No avanza, pero dejamos el acumulador cerca del umbral en COMMIT
+                    plan.push(Decision::Wait { tid: *tid, step_ms });
                 }
-                MoveIntent::AdvanceTo { coord: next } => {
-                    // Verificar ocupación
-                    if self.is_free(next) {
-                        // COMMIT: actualizar occupancy y el vehículo
-                        let from = v.base().current();
-                        self.free(from);
-                        self.occupy(next, tid);
-                        v.base_mut().commit_advance(next);
-                        *acc -= step_time; // consumimos el paso
-                    } else {
-                        // ocupado: esperar
-                        *acc = step_time.min(*acc);
+                MoveIntent::AdvanceTo { coord: to } => {
+                    plan.push(Decision::MoveTo {
+                        tid: *tid, step_ms, from, to, is_bridge: false
+                    });
+                }
+                MoveIntent::NextIsBridge { coord: to } => {
+                    plan.push(Decision::MoveTo {
+                        tid: *tid, step_ms, from, to, is_bridge: true
+                    });
+                }
+            }
+        }
+
+        // ---------- FASE 2: COMMIT ----------
+        for dec in plan {
+            match dec {
+                Decision::Arrived { tid } => {
+                    // a) liberar la celda ocupada (si quieres)
+                    if let Some(v) = self.vehicles.get(&tid) {
+                        let pos = v.base().current();
+                        self.occupancy.remove(&pos);
+                    }
+                    // b) remover vehículo y su reloj
+                    self.vehicles.remove(&tid);
+                    self.time_acc.remove(&tid);
+                    // c) métricas/estadísticas si aplica...
+                }
+
+                Decision::Wait { tid, step_ms } => {
+                    // Lo dejas listo para reintentar pronto (pegado al umbral)
+                    if let Some(acc) = self.time_acc.get_mut(&tid) {
+                        *acc = step_ms.min(*acc);
                     }
                 }
-                MoveIntent::NextIsBridge { coord: next } => {
-                    // Por ahora: tratarlo como carretera normal
-                    // (o invocar tu BridgeBlock aquí para pedir permiso)
-                    if self.is_free(next) {
-                        let from = v.base().current();
-                        self.free(from);
-                        self.occupy(next, tid);
-                        v.base_mut().commit_advance(next);
-                        *acc -= step_time;
-                    } else {
-                        *acc = step_time.min(*acc);
+
+                Decision::MoveTo { tid, step_ms, from, to, is_bridge } => {
+                    // (i) Si es puente, aquí invocarías a tu BridgeController (request_entry/exit)
+                    // Por ahora, si 'is_bridge' prefieres tratarlo normal, continúa.
+                    // Si no, integra:
+                    //   if is_bridge { if !bridge_request_ok(...) { espera } }
+
+                    // (ii) Chequeo de ocupación: ¡ya NO hay préstamo a v activo!
+                    if self.occupancy.contains_key(&to) {
+                        if let Some(acc) = self.time_acc.get_mut(&tid) {
+                            *acc = step_ms.min(*acc); // ocupado → esperar
+                        }
+                        continue;
                     }
+
+                    // (iii) Ocupación: liberar origen y ocupar destino
+                    self.occupancy.remove(&from);
+                    self.occupancy.insert(to, tid);
+
+                    // (iv) Commit en el vehículo (ahora sí pedimos &mut al vehículo)
+                    if let Some(vmut) = self.vehicles.get_mut(&tid) {
+                        vmut.base_mut().commit_advance(to);
+                    }
+
+                    // (v) Consumir tiempo del paso
+                    if let Some(acc) = self.time_acc.get_mut(&tid) {
+                        *acc -= step_ms;
+                    }
+
+                    // (vi) Si saliste de un puente (from era puente y to no), libera el mutex del puente aquí
+                    // if is_bridge_exit(from, to) { bridge_exit_with(tid); }
                 }
             }
         }
     }
+
 
     #[inline]
     fn is_free(&self, c: Coord) -> bool {
