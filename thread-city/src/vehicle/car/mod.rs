@@ -26,10 +26,26 @@ impl Vehicle for Car {
         self
     }
 
-    fn initialize(&mut self, map: &Map, thread_id: ThreadId) {
-        self.base.calculate_path(map);
-        self.base.thread_id = Some(thread_id);
-    }
+   // fn initialize(&mut self, map: &Map, thread_id: ThreadId) {
+   //     self.base.calculate_path(map);
+   //     self.base.thread_id = Some(thread_id);
+  //  }
+
+
+        fn initialize(&mut self, map: &Map, thread_id: ThreadId) {
+            self.base.calculate_path(map);
+
+            // Útil para detectar por qué algunos tests dicen "NoPath"
+            debug_assert!(
+                self.base.path.is_some(),
+                "calculate_path no generó ruta (origin={:?} dest={:?})",
+                self.base.current_position,
+                self.base.destination
+            );
+
+            self.base.thread_id = Some(thread_id);
+        }
+
 
 
     fn base(&self) -> &VehicleBase { &self.base }

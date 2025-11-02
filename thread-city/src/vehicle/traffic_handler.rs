@@ -12,7 +12,7 @@ pub struct TrafficHandler<'a> {
     road_coords: Vec<Coord>,
     shops_coords: Vec<Coord>,
     water_spawns: Vec<Coord>,
-    dock: Coord,
+    dock: Option<Coord>,
     pub(crate) map: &'a Map,
 
     pub(crate) occupancy: HashMap<Coord, ThreadId>,
@@ -24,12 +24,16 @@ pub struct TrafficHandler<'a> {
 
 impl<'a> TrafficHandler<'a> {
     pub fn new(map: &'a Map, water_spawns: Vec<Coord>) -> Self {
+
+        let dock = map.find_blocks(Dock).get(0).cloned(); // <- sin unwrap
+
         Self {
             vehicles: HashMap::new(),
             road_coords: map.find_blocks(Road),
             shops_coords: map.find_blocks(Shops),
             water_spawns,
-            dock: map.find_blocks(Dock).get(0).unwrap().clone(),
+            dock,
+            //dock: map.find_blocks(Dock).get(0).unwrap().clone(),
             map,
 
             occupancy: HashMap::new(),
