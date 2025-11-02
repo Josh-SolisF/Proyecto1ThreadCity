@@ -66,7 +66,13 @@ impl VehicleBase {
                 }
                 
                 path.reverse();
+
+
+
+                let len = path.len();
                 self.path = Some(path);
+                self.path_idx = if len > 1 { 1 } else { 0 };
+
                 return;
             }
             
@@ -91,10 +97,10 @@ impl VehicleBase {
         }
 
 
-        if let Some(ref p) = self.path {
-            // Colocar el índice en la PRIMERA celda distinta del origen
-            self.path_idx = if p.len() > 1 { 1 } else { 0 };
-        }
+     //   if let Some(ref p) = self.path {
+     //       // Colocar el índice en la PRIMERA celda distinta del origen
+     //       self.path_idx = if p.len() > 1 { 1 } else { 0 };
+     //   }
 
     }
 
