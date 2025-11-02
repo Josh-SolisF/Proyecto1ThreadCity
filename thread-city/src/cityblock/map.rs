@@ -26,11 +26,28 @@ impl Map {
         }
     }
 
+
+    #[inline]
+    pub fn block_at(&self, c: Coord) -> Option<&dyn Block> {
+        if self.in_bounds(c) {
+            // `&*` para des-referenciar el Box<dyn Block> a &dyn Block
+            Some(&*self.grid[c.y as usize][c.x as usize])
+        } else {
+            None
+        }
+    }
+
+    pub fn block_type_at(&self, c: Coord) -> Option<BlockType> {
+        self.block_at(c).map(|b| *b.get_type())
+        // Si BlockType no fuera Copy, cambia a: .map(|b| b.get_type().clone())
+    }
+
+/*
     pub fn block_type_at(&self, c: Coord) -> Option<BlockType> {
         self.cell_at(c).map(|cell| cell.block_type)
     }
     
-
+*/
     pub fn in_bounds(&self, coord: Coord) -> bool {
         coord.x >= 0 && coord.y >= 0 && coord.x < self.width as i16 && coord.y < self.height as i16
     }
@@ -41,7 +58,7 @@ impl Map {
         None
     }
     pub fn neighbors(&self, coord: Coord) -> Vec<Coord> {
-        let deltas = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+        let deltas: [(i16, i16); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
         deltas.iter()
             .map(|(dx, dy)| Coord::new(coord.x + dx, coord.y + dy))
             .filter(|coord| self.in_bounds(*coord))
