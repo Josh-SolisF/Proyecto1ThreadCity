@@ -24,4 +24,16 @@ impl TrafficLight {
             self.in_red = !self.in_red;
         }
     }
+
+
+    pub fn force_red(&mut self) {
+        self.in_red = true;
+        self.time_passed_ms = 0;
+    }
+
+    pub fn force_green(&mut self) {
+        self.in_red = false;
+        self.time_passed_ms = 0;
+    }
+
 }

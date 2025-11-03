@@ -40,4 +40,15 @@ impl Control {
     pub fn allow_out(&mut self, _thread: &MyThread, _vehicle: VehicleType) {
         // TODO
     }
+
+
+    pub fn advance_time(&mut self, step_ms: usize) {
+        if let Some(tl) = &mut self.in_traffic_light {
+            tl.advance_time(step_ms);
+        }
+        if let Some(tl) = &mut self.out_traffic_light {
+            tl.advance_time(step_ms);
+        }
+    }
+
 }

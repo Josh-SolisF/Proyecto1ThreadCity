@@ -27,22 +27,31 @@ impl Map {
     }
 
 
+        #[inline]
+        pub fn block_at(&self, c: Coord) -> Option<&dyn Block> {
+            if self.in_bounds(c) {
+                // `&*` para des-referenciar el Box<dyn Block> a &dyn Block
+                Some(&*self.grid[c.y as usize][c.x as usize])
+            } else {
+                None
+            }
+        }
+
     #[inline]
-    pub fn block_at(&self, c: Coord) -> Option<&dyn Block> {
+    pub fn block_at_mut(&mut self, c: Coord) -> Option<&mut dyn Block> {
         if self.in_bounds(c) {
-            // `&*` para des-referenciar el Box<dyn Block> a &dyn Block
-            Some(&*self.grid[c.y as usize][c.x as usize])
+            Some(&mut *self.grid[c.y as usize][c.x as usize])
         } else {
             None
         }
     }
 
-    pub fn block_type_at(&self, c: Coord) -> Option<BlockType> {
-        self.block_at(c).map(|b| *b.get_type())
-        // Si BlockType no fuera Copy, cambia a: .map(|b| b.get_type().clone())
-    }
+        pub fn block_type_at(&self, c: Coord) -> Option<BlockType> {
+            self.block_at(c).map(|b| *b.get_type())
+            // Si BlockType no fuera Copy, cambia a: .map(|b| b.get_type().clone())
+        }
 
-/*
+    /*
     pub fn block_type_at(&self, c: Coord) -> Option<BlockType> {
         self.cell_at(c).map(|cell| cell.block_type)
     }

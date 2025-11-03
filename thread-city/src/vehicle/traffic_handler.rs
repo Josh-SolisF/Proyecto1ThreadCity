@@ -6,7 +6,9 @@ use crate::cityblock::coord::Coord;
 use crate::cityblock::map::Map;
 use crate::vehicle::car::Car;
 use crate::vehicle::vehicle::{MoveIntent, Occupancy, Vehicle};
-
+use crate::cityblock::block_type::BlockType;
+use crate::cityblock::bridge::BridgeBlock;
+use crate::cityblock::bridge::BridgePermissionEnum::EntryOutcome;
 pub struct TrafficHandler<'a> {
     pub(crate) vehicles: HashMap<ThreadId, Box<dyn Vehicle>>,
     road_coords: Vec<Coord>,
@@ -68,7 +70,10 @@ impl<'a> TrafficHandler<'a> {
     }
 
     /// El “reloj” global: avanza dt_ms y decide quién puede dar un paso.
+    /// El “reloj” global: avanza dt_ms y decide quién puede dar un paso.
     pub fn tick(&mut self, dt_ms: u64) {
+
+
         let dt = dt_ms as f32;
 
         // 1) Snapshot de TIDs para evitar problemas de préstamo del HashMap
@@ -145,35 +150,90 @@ impl<'a> TrafficHandler<'a> {
                 }
 
                 Decision::MoveTo { tid, step_ms, from, to, is_bridge } => {
-                    // (i) Si es puente, aquí invocarías a tu BridgeController (request_entry/exit)
-                    // Por ahora, si 'is_bridge' prefieres tratarlo normal, continúa.
-                    // Si no, integra:
-                    //   if is_bridge { if !bridge_request_ok(...) { espera } }
+                    // Detecta relación con puente (evita helpers redundantes)
+                    let from_is_bridge = matches!(self.map.block_type_at(from), Some(BlockType::Bridge));
+                    let to_is_bridge   = is_bridge || matches!(self.map.block_type_at(to), Some(BlockType::Bridge));
 
-                    // (ii) Chequeo de ocupación: ¡ya NO hay préstamo a v activo!
+                    let is_entering = !from_is_bridge && to_is_bridge;
+                    let is_exiting  =  from_is_bridge && !to_is_bridge;
+                    // mover dentro del puente: from_is_bridge && to_is_bridge (no tocar lock)
+
+                    // (0) Si el destino está ocupado, esperar (no intentes reservar el carril)
                     if self.occupancy.contains_key(&to) {
                         if let Some(acc) = self.time_acc.get_mut(&tid) {
-                            *acc = step_ms.min(*acc); // ocupado → esperar
+                            *acc = step_ms.min(*acc);
                         }
                         continue;
                     }
 
-                    // (iii) Ocupación: liberar origen y ocupar destino
+                    // (1) Si estás entrando a un puente, intenta pedir entrada (reserva carril si Granted)
+                    if is_entering {
+                        // Necesitamos el vehículo para validar policy/tipo
+                        let Some(vref) = self.vehicles.get(&tid) else { continue; };
+
+                        let can_enter = match self.map.block_at_mut(to) {
+                            Some(b) => {
+                                // Downcast seguro al BridgeBlock concreto
+                                if let Some(bridge) = b.as_any_mut().downcast_mut::<BridgeBlock>() {
+                                    match bridge.request_entry(vref.base(), from, to, tid) {
+                                        EntryOutcome::Granted   => true,  // carril reservado
+                                        EntryOutcome::Wait      => false, // rojo u ocupado
+                                        EntryOutcome::Forbidden => false, // política lo prohíbe
+                                    }
+                                } else {
+                                    // Si el tipo dice Bridge pero no es BridgeBlock, negar por seguridad
+                                    false
+                                }
+                            }
+                            None => false,
+                        };
+
+                        if !can_enter {
+                            if let Some(acc) = self.time_acc.get_mut(&tid) {
+                                *acc = step_ms.min(*acc);
+                            }
+                            continue;
+                        }
+                        // Si llegó aquí, el carril quedó reservado para 'tid' hasta que salga del puente.
+                    }
+
+                    // (2) Ocupación: liberar origen y ocupar destino
                     self.occupancy.remove(&from);
                     self.occupancy.insert(to, tid);
 
-                    // (iv) Commit en el vehículo (ahora sí pedimos &mut al vehículo)
+                    // (3) Commit en el vehículo
                     if let Some(vmut) = self.vehicles.get_mut(&tid) {
                         vmut.base_mut().commit_advance(to);
                     }
 
-                    // (v) Consumir tiempo del paso
+                    // (4) Consumir tiempo del paso
                     if let Some(acc) = self.time_acc.get_mut(&tid) {
                         *acc -= step_ms;
                     }
 
-                    // (vi) Si saliste de un puente (from era puente y to no), libera el mutex del puente aquí
-                    // if is_bridge_exit(from, to) { bridge_exit_with(tid); }
+                    // (5) Si estás saliendo del puente, libera el carril después de moverte
+                    if is_exiting {
+                        if let (Some(b), Some(vref)) = (self.map.block_at_mut(from), self.vehicles.get(&tid)) {
+                            if let Some(bridge) = b.as_any_mut().downcast_mut::<BridgeBlock>() {
+                                let _ = bridge.exit_bridge(vref.base(), tid);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---------- INFRA: avanzar semáforos de puentes ----------
+        // Si tienes un índice de puentes, úsalo en vez de recorrer toda la grilla.
+        for y in 0..self.map.height() {
+            for x in 0..self.map.width() {
+                let c = Coord { x: x as i32, y: y as i32 };
+                if matches!(self.map.block_type_at(c), Some(BlockType::Bridge)) {
+                    if let Some(b) = self.map.block_at_mut(c) {
+                        if let Some(bridge) = b.as_any_mut().downcast_mut::<BridgeBlock>() {
+                            bridge.advance_time(dt_ms as usize);
+                        }
+                    }
                 }
             }
         }

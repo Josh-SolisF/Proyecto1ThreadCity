@@ -1,6 +1,6 @@
 pub mod control;
 mod traffic_light;
-mod BridgePermissionEnum;
+pub(crate) mod BridgePermissionEnum;
 
 use std::any::Any;
 use mypthreads::mythread::mymutex::MyMutex;
@@ -72,10 +72,21 @@ impl BridgeBlock {
 
 
     pub fn ask_pass(&self, thread: &MyThread, vehicle_ty: VehicleType) -> bool {
-        todo!()
+
+        // Política: ¿este vehículo puede usar el puente?
+        if !self.base.policy.can_pass(vehicle_ty) {
+            return false;
+        }
+        // Semáforo de entrada: si existe, debe estar en verde
+        if let Some(tl) = &self.control.in_traffic_light {
+            return tl.can_pass();
+        }
+        // Sin semáforo = libre
+        true
+
     }
 
-    fn request_entry(&mut self, v: &VehicleBase, _from: Coord, _to: Coord, caller:ThreadId) -> EntryOutcome {
+    pub(crate) fn request_entry(&mut self, v: &VehicleBase, _from: Coord, _to: Coord, caller:ThreadId) -> EntryOutcome {
         // Política puede usar el puente (para que los barcos no pasen por tierra)
         if !self.base.policy.can_pass(v.vehicle_type) {
             return EntryOutcome::Forbidden;
@@ -101,23 +112,74 @@ impl BridgeBlock {
         }
     }
 
-    pub fn enter_bridge(&mut self, vehicle: &VehicleBase) -> bool {
-        todo!()
+
+    pub fn advance_time(&mut self, step_ms: usize) {
+        self.control.advance_time(step_ms);
+    }
+    
+
+    pub fn enter_bridge(&mut self, vehicle: &VehicleBase, caller:ThreadId) -> bool {
+
+
+        // Política
+        if !self.base.policy.can_pass(vehicle.vehicle_type) {
+            return false;
+        }
+        // Semáforo de entrada
+        if let Some(tl) = &self.control.in_traffic_light {
+            if !tl.can_pass() {
+                return false;
+            }
+        }
+
+        // Intentar reservar el único carril
+        match self.mutex.as_mut() {
+            Some(m) => {
+                let rc = m.try_lock(caller);
+                rc == 0
+            }
+            None => false, // no debería ocurrir: P1 siempre tiene mutex
+        }
+
     }
 
-    pub fn exit_bridge(&mut self, vehicle: &VehicleBase) -> bool {
-        todo!()
+
+    pub fn exit_bridge(&mut self, _vehicle: &VehicleBase, caller: ThreadId) -> bool {
+        match self.mutex.as_mut() {
+            Some(m) => {
+                // Asumiendo API unlock(ThreadId) -> i32
+                // Ajusta el nombre si tu MyMutex usa otra firma
+                let rc = m.unlock(caller);
+                rc == 0
+            }
+            None => false,
+        }
     }
 
-    pub fn open_bridge(&mut self, caller: &MyThread) -> bool {
-        todo!()
+
+    pub fn open_bridge(&mut self, _caller: &MyThread) -> bool {
+        if let Some(tl) = &mut self.control.in_traffic_light {
+            tl.force_red();
+        }
+        if let Some(tl) = &mut self.control.out_traffic_light {
+            tl.force_red();
+        }
+        true
     }
 
-    pub fn close_bridge(&mut self, caller: &MyThread) -> bool {
-        todo!()
+
+    pub fn close_bridge(&mut self, _caller: &MyThread) -> bool {
+        if let Some(tl) = &mut self.control.in_traffic_light {
+            tl.force_green();
+        }
+        if let Some(tl) = &mut self.control.out_traffic_light {
+            tl.force_green();
+        }
+        true
     }
 
     pub fn return_mutex(&mut self) -> Option<MyMutex> {
         self.mutex.take()
     }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
