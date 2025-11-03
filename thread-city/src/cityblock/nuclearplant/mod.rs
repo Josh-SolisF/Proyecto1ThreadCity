@@ -31,20 +31,13 @@ impl Block for NuclearPlantBlock {
     fn get_id(&self) -> &usize {
         &self.base.id
     }
-
     fn get_policy(&self) -> &TransportPolicy {
         &self.base.policy
     }
-
     fn get_type(&self) -> &BlockType {
         &self.base.block_type
     }
-
-    fn is_blocked(&self) -> bool {
-        todo!()
-    }
-
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&mut self) -> &mut dyn Any {
         self
     }
 }

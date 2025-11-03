@@ -7,26 +7,20 @@ use crate::cityblock::transport_policy::TransportPolicy::Ship;
 
 pub struct WaterBlock {
     pub(crate) base: BlockBase,
+    has_space: bool,
 }
 
 impl Block for WaterBlock {
     fn get_id(&self) -> &usize {
         &self.base.id
     }
-
     fn get_policy(&self) -> &TransportPolicy {
         &self.base.policy
     }
-
     fn get_type(&self) -> &BlockType {
         &self.base.block_type
     }
-
-    fn is_blocked(&self) -> bool {
-        todo!()
-    }
-
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&mut self) -> &mut dyn Any  {
         self
     }
 }
@@ -35,6 +29,15 @@ impl WaterBlock {
     pub fn new(id: usize) -> Self {
         Self {
             base: BlockBase::new(id, Ship, Water),
+            has_space: true,
         }
     }
+    pub fn consume_space(&mut self) {
+        self.has_space = false;
+    }
+    pub fn liberate_space(&mut self) {
+        self.has_space = true;
+    }
+    #[inline]
+    pub fn is_available(&self) -> bool { self.has_space }
 }

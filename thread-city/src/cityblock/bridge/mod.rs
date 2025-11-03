@@ -14,7 +14,7 @@ use crate::cityblock::bridge::control::Control;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::transport_policy::TransportPolicy;
 use crate::cityblock::transport_policy::TransportPolicy::{AnyVehicle, Car};
-use crate::vehicle::vehicle::VehicleBase;
+use crate::vehicle::vehicle::{Vehicle, VehicleBase};
 use crate::vehicle::vehicle_type::VehicleType;
 
 pub struct BridgeBlock {
@@ -27,27 +27,13 @@ impl Block for BridgeBlock {
     fn get_id(&self) -> &usize {
         &self.base.id
     }
-
     fn get_policy(&self) -> &TransportPolicy {
         &self.base.policy
     }
-
     fn get_type(&self) -> &BlockType {
         &self.base.block_type
     }
-
-
-    fn is_blocked(&self) -> bool {
-        if let Some(tl) = &self.control.in_traffic_light {
-            !tl.can_pass() // rojo => bloqueado
-        }
-
-        else {false}
-    }
-
-fn as_any(&self) -> &dyn Any {self}
-
-
+    fn as_any(&mut self) -> &mut dyn Any {self}
     }
 impl BridgeBlock {
     pub fn new(id: usize, control: Control, bridge_mutex: MyMutex) -> Self {
@@ -105,17 +91,9 @@ impl BridgeBlock {
         todo!()
     }
 
-    pub fn exit_bridge(&mut self, vehicle: &VehicleBase) -> bool {
+    pub fn exit_bridge(&mut self, vehicle: &Box<dyn Vehicle>) -> bool {
         todo!()
-    }
-
-    pub fn open_bridge(&mut self, caller: &MyThread) -> bool {
-        todo!()
-    }
-
-    pub fn close_bridge(&mut self, caller: &MyThread) -> bool {
-        todo!()
-    }
+    }   
 
     pub fn return_mutex(&mut self) -> Option<MyMutex> {
         self.mutex.take()

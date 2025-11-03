@@ -6,7 +6,4 @@ pub enum BlockType {
     Road,
     Bridge,
     NuclearPlant,
-    Bridge1,
-    Bridge2,
-    Bridge3,
 }

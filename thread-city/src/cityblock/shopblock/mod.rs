@@ -41,7 +41,7 @@ impl Block for ShopBlock {
         todo!()
     }
 
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&mut self) -> &mut dyn Any {
         self
     }
 }

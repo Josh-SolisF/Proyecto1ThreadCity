@@ -3,7 +3,5 @@ pub mod vehicle_type;
 pub mod cargotruck;
 mod ambulance;
 mod ship;
-mod car;
+pub mod car;
 mod tests;
-pub mod traffic_handler;
-mod MovementTests;

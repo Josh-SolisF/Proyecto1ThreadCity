@@ -26,7 +26,6 @@ pub trait Block: Any {
     fn get_id(&self) -> &usize;
     fn get_policy(&self) -> &TransportPolicy;
     fn get_type(&self) -> &BlockType;
-    fn is_blocked(&self) -> bool;
-    fn as_any(&self) -> &dyn Any;
+    fn as_any(&mut self) -> &mut dyn Any;
 
 }

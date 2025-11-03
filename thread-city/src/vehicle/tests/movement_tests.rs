@@ -45,7 +45,7 @@ pub fn build_column_map_with_bridge() -> Map {
 mod tests {
     use mypthreads::mythread::mythread::ThreadId;
     use super::*; // importa TrafficHandler, Car, etc.
-    use crate::vehicle::traffic_handler::TrafficHandler;
+    use crate::city::traffic_handler::TrafficHandler;
     use crate::vehicle::vehicle::{Vehicle, MoveIntent};
 
     /// Crea un handler, inserta un coche determinísticamente, y fija ocupación/reloj.
@@ -54,7 +54,8 @@ mod tests {
     {
         // Para prestar 'static en tests, guardamos el mapa en un Box y luego
         // hacemos 'leak' controlado SOLO dentro del test (válido en tests).
-        let mut map = Box::new(build_column_map_4x1());        let map_ref: &'static mut Map = Box::leak(map);
+        let mut map = Box::new(build_column_map_4x1());        
+        let map_ref: &'static mut Map = Box::leak(map);
 
         let mut handler = TrafficHandler::new(map_ref, vec![]);
         let tid: ThreadId = 1; // ajusta si ThreadId no es usize
@@ -79,7 +80,7 @@ mod tests {
         let (mut handler, tid) = setup_handler_with_car(1, (0,0), (0,3));
 
         // Tick de 1000ms: debe mover exactamente 1 celda
-        handler.tick(1000);
+        handler.advance_time(1000);
 
         let v = handler.vehicles.get(&tid).unwrap();
         let pos = v.base().current();
@@ -96,12 +97,12 @@ mod tests {
         let (mut handler, tid) = setup_handler_with_car(2, (0,0), (0,3));
 
         // 1) Aún no alcanza: 400ms < 500ms
-        handler.tick(400);
+        handler.advance_time(400);
         let v = handler.vehicles.get(&tid).unwrap();
         assert_eq!(v.base().current(), c(0,0), "No debe moverse aún (400ms < 500ms)");
 
         // 2) Acumula otros 100ms => 500ms total; ahora sí se mueve 1 celda
-        handler.tick(100);
+        handler.advance_time(100);
         let v = handler.vehicles.get(&tid).unwrap();
         assert_eq!(v.base().current(), c(0,1), "Debe moverse tras completar 500ms");
     }
@@ -132,7 +133,7 @@ mod tests {
         handler.time_acc.insert(tid_b, 0.0);
 
         // 1er tick: 1000ms -> B intentará ir a (0,2). A intentará ir a (0,1) pero puede quedar bloqueado
-        handler.tick(1000);
+        handler.advance_time(1000);
 
         // Invariante: no hay colisiones
         let occ = &handler.occupancy;
@@ -140,7 +141,7 @@ mod tests {
         assert_eq!(unique_cells.len(), 2, "Cada vehículo debe ocupar una celda distinta");
 
         // 2do tick: A ya debería poder avanzar a (0,1)
-        handler.tick(1000);
+        handler.advance_time(1000);
 
         let pos_a = handler.vehicles.get(&tid_a).unwrap().base().current();
         let pos_b = handler.vehicles.get(&tid_b).unwrap().base().current();
@@ -169,9 +170,9 @@ mod tests {
         // Con speed=1, desde (0,0) a (0,3): 3 pasos => 3 ticks de 1000ms.
         let (mut handler, tid) = setup_handler_with_car(1, (0,0), (0,3));
 
-        handler.tick(1000); // -> (0,1)
-        handler.tick(1000); // -> (0,2)
-        handler.tick(1000); // -> (0,3) destino
+        handler.advance_time(1000); // -> (0,1)
+        handler.advance_time(1000); // -> (0,2)
+        handler.advance_time(1000); // -> (0,3) destino
 
         let v = handler.vehicles.get(&tid).unwrap();
         assert_eq!(v.base().current(), c(0,3), "Debe estar en destino");

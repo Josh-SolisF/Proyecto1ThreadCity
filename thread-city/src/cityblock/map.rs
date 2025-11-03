@@ -26,11 +26,17 @@ impl Map {
         }
     }
 
-
+    #[inline]
+    pub fn get_block_at(&mut self, c: Coord) -> Option<&mut dyn Block> {
+        if self.in_bounds(c) {
+            Some(&mut *self.grid[c.y as usize][c.x as usize])
+        } else {
+            None
+        }
+    }
     #[inline]
     pub fn block_at(&self, c: Coord) -> Option<&dyn Block> {
         if self.in_bounds(c) {
-            // `&*` para des-referenciar el Box<dyn Block> a &dyn Block
             Some(&*self.grid[c.y as usize][c.x as usize])
         } else {
             None
