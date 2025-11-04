@@ -45,7 +45,7 @@ impl VehicleBase {
             path: None,
             thread_id: None,
             path_idx: 0,
-            patience: 0,
+            patience: max_patience,
             max_patience,
         }
     }

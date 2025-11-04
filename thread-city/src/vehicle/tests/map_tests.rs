@@ -48,7 +48,7 @@ mod complex_routing {
         custom.push(arr3);
 
         let tid: ThreadId = 0;
-        let mut carr = Car::new(Coord::new(0, 3), Coord::new(3, 3), 1);
+        let mut carr = Car::new(Coord::new(0, 3), Coord::new(3, 3));
         let map = Map::build_custom(custom);
         carr.initialize(&map, tid);
 
@@ -136,7 +136,7 @@ mod complex_routing {
         let map = Map::build_custom(custom);
 
         let car_tid: ThreadId = 0;
-        let mut carr = Car::new(Coord::new(1, 0), Coord::new(1, 2), 1);
+        let mut carr = Car::new(Coord::new(1, 0), Coord::new(1, 2));
         carr.initialize(&map, car_tid);
 
         let boat_tid: ThreadId = 1;

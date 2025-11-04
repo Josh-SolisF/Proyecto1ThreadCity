@@ -32,8 +32,10 @@ impl WaterBlock {
             has_space: true,
         }
     }
-    pub fn consume_space(&mut self) {
+    pub fn consume_space(&mut self) -> bool {
+        if !self.is_available() { return false }
         self.has_space = false;
+        true
     }
     pub fn liberate_space(&mut self) {
         self.has_space = true;

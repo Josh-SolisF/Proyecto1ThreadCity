@@ -1,21 +1,22 @@
 pub mod control;
 mod traffic_light;
-mod BridgePermissionEnum;
+pub mod bridge_permision_enum;
 
 use std::any::Any;
 use mypthreads::mythread::mymutex::MyMutex;
-use mypthreads::mythread::mythread::{MyThread, ThreadId};
+use mypthreads::mythread::mypthread::MyPThread;
 use crate::cityblock::Block;
 use crate::cityblock::block::BlockBase;
 use crate::cityblock::block_type::BlockType;
 use crate::cityblock::block_type::BlockType::Bridge;
-use crate::cityblock::bridge::BridgePermissionEnum::EntryOutcome;
+use crate::cityblock::bridge::bridge_permision_enum::EntryOutcome;
+use crate::cityblock::bridge::bridge_permision_enum::EntryOutcome::{GrantedFor, Occupied};
 use crate::cityblock::bridge::control::Control;
-use crate::cityblock::coord::Coord;
 use crate::cityblock::transport_policy::TransportPolicy;
 use crate::cityblock::transport_policy::TransportPolicy::{AnyVehicle, Car};
-use crate::vehicle::vehicle::{Vehicle, VehicleBase};
+use crate::vehicle::vehicle::{PatienceLevel, Vehicle, VehicleBase};
 use crate::vehicle::vehicle_type::VehicleType;
+use crate::vehicle::vehicle_type::VehicleType::ShipE;
 
 pub struct BridgeBlock {
     pub(crate) base: BlockBase,
@@ -44,56 +45,29 @@ impl BridgeBlock {
             mutex: Some(bridge_mutex),
         }
     }
-
-    /// Puente 1: un carril + semáforo global (intervalo en ms)
-    pub fn new_p1(id: usize, interval_ms: usize, bridge_mutex: MyMutex) -> Self {
-        let control = Control::with_traffic(interval_ms, interval_ms);
-        let policy = TransportPolicy::Car;
-        Self {
-            base: BlockBase::new(id, policy, BlockType::Bridge),
-            control,
-            mutex: Some(bridge_mutex),
-        }
-    }
-
-
-    pub fn ask_pass(&self, thread: &MyThread, vehicle_ty: VehicleType) -> bool {
-        todo!()
-    }
-
-    fn request_entry(&mut self, v: &VehicleBase, _from: Coord, _to: Coord, caller:ThreadId) -> EntryOutcome {
-        // Política puede usar el puente (para que los barcos no pasen por tierra)
-        if !self.base.policy.can_pass(v.vehicle_type) {
-            return EntryOutcome::Forbidden;
-        }
-        // Puente 1: semáforo verde requerido
-        if let Some(tl) = &self.control.in_traffic_light {
-            if !tl.can_pass() {return EntryOutcome::Wait;}
-        }
-
+    pub fn request_entry(&mut self, vehicles: Vec<&Box<dyn Vehicle>>) -> EntryOutcome {
+        let candidate = self.control.allow_in(vehicles);
+        if candidate.is_none() { return Occupied }
         match self.mutex.as_mut() {
             Some(m) => {
-
-                let rc: i32 = m.try_lock(caller);
+                let rc: i32 = m.try_lock(candidate.unwrap());
                 if rc == 0 {
-                    EntryOutcome::Granted // carril reservado
-
-
+                    GrantedFor { tid: candidate.unwrap() } // carril reservado
                 } else {
-                    EntryOutcome::Wait // ocupado, reintenta luego
+                    Occupied
                 }
             }
-            None => EntryOutcome::Wait, // sin mutex configurado
+            None => Occupied,
         }
     }
-
-    pub fn enter_bridge(&mut self, vehicle: &VehicleBase) -> bool {
-        todo!()
+    pub fn exit_bridge(&mut self, v_type: VehicleType, v_pat: PatienceLevel) -> bool {
+        let mut pth = MyPThread::new();
+        if v_type == ShipE || self.control.allow_out(v_type,v_pat) {
+            unsafe { pth.my_mutex_unlock(self.mutex.as_mut().unwrap()); }
+            return true;
+        }
+        false
     }
-
-    pub fn exit_bridge(&mut self, vehicle: &Box<dyn Vehicle>) -> bool {
-        todo!()
-    }   
 
     pub fn return_mutex(&mut self) -> Option<MyMutex> {
         self.mutex.take()

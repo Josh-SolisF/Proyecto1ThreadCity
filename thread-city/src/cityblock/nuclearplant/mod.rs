@@ -73,7 +73,7 @@ impl NuclearPlantBlock {
         self.scheduled_trucks.push(truck);
     }
 
-    pub fn commit_delivery(&mut self, truck: CargoTruck) {
+    pub fn commit_delivery(&mut self, truck: &CargoTruck) {
         if (self.requires.contains(&truck.cargo)) {
             todo!("Deberia eliminarse el camión y el supply que esperaba la planta")
         }
