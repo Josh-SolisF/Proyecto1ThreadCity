@@ -15,7 +15,7 @@ use crate::cityblock::water::WaterBlock;
 pub fn c(r: usize, k: usize) -> crate::cityblock::coord::Coord {
     crate::cityblock::coord::Coord::new(r as i16, k as i16)
 }
-
+ 
 /// 1x4: Road - Road - Road - Shop
 
 pub fn build_column_map_4x1() -> Map {

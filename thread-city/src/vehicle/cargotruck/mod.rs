@@ -3,9 +3,10 @@ use mypthreads::mythread::mythread::ThreadId;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::map::Map;
 use crate::cityblock::nuclearplant::plant_status::PlantStatus;
+use crate::cityblock::nuclearplant::plant_status::PlantStatus::Critical;
 use crate::cityblock::nuclearplant::supply_spec::SupplySpec;
 use crate::vehicle::vehicle::{MoveIntent, PatienceLevel, Vehicle, VehicleBase};
-use crate::vehicle::vehicle::PatienceLevel::Maxed;
+use crate::vehicle::vehicle::PatienceLevel::{Low, Maxed, Starved};
 use crate::vehicle::vehicle_type::VehicleType;
 use crate::vehicle::vehicle_type::VehicleType::TruckE;
 
@@ -29,6 +30,11 @@ impl CargoTruck {
             PlantStatus::Boom => { self.base.patience = 0 }
         }
     }
+
+    pub fn unload(&mut self) -> SupplySpec {
+        self.cargo.clone()
+    }
+
 }
 
 impl Vehicle for CargoTruck {
@@ -52,21 +58,32 @@ impl Vehicle for CargoTruck {
         self.base.plan_next(map)
     }
 
+
     fn try_move(&mut self, next_is_open: bool) -> PatienceLevel {
         if next_is_open {
             self.base.patience = self.base.max_patience;
-            self.base.current_position = self.base.path.as_mut().unwrap()[self.base.path_idx];
-            self.base.path_idx += 1;
-            return Maxed {moved: true};
+            if let Some(next) = self.base.path.as_mut().and_then(|p| p.get(self.base.path_idx).copied()) {
+                self.base.current_position = next;
+                self.base.path_idx += 1;
+            }
+            return Maxed { moved: true };
         }
-        self.base.patience -= 1;
-        self.calc_patience()
+        self.base.patience = self.base.patience.saturating_sub(1);
+        if self.base.patience == 0 { Starved } else { self.calc_patience() }
     }
+
 
     fn base(&self) -> &VehicleBase { &self.base }
     fn base_mut(&mut self) -> &mut VehicleBase { &mut self.base }
 
+
     fn calc_patience(&self) -> PatienceLevel {
-        todo!()
+        match self.base.patience {
+            0 => Starved,
+            1 => PatienceLevel::Critical,
+            2 => Low,
+            _ => Maxed { moved: false },
+        }
     }
+
 }
