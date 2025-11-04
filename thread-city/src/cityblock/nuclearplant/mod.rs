@@ -205,6 +205,12 @@ fn next_status(&mut self) -> PlantStatus {
         Boom     => Boom,
     }
 }
+    fn next_outstanding_to_schedule(&self) -> Option<SupplySpec> {
+        self.requires
+            .iter()
+            .find(|req| !self.is_kind_scheduled(req.kind))
+            .copied()
+    }
 }
 /*
 
