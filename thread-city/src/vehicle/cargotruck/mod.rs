@@ -3,7 +3,6 @@ use mypthreads::mythread::mythread::ThreadId;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::map::Map;
 use crate::cityblock::nuclearplant::plant_status::PlantStatus;
-use crate::cityblock::nuclearplant::plant_status::PlantStatus::Critical;
 use crate::cityblock::nuclearplant::supply_spec::SupplySpec;
 use crate::vehicle::vehicle::{MoveIntent, PatienceLevel, Vehicle, VehicleBase};
 use crate::vehicle::vehicle::PatienceLevel::{Low, Maxed, Starved};

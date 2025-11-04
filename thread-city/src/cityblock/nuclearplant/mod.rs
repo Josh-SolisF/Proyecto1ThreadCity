@@ -235,8 +235,6 @@ fn next_status(&mut self) -> PlantStatus {
         }
     }
 */
-    /// Interno: devuelve el siguiente SupplySpec pendiente que aún NO tenga camión programado.
-
 
 
 
