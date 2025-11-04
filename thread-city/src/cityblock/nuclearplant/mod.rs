@@ -140,36 +140,7 @@ impl NuclearPlantBlock {
     }
     /// Interno: avanza el estado UNA vez y, si entra a AtRisk, genera pedidos.
     /// Devuelve un pedido pendiente sin camión programado (si lo hay) para que lo atiendas ya.
-    fn check_requirements(&mut self) -> Option<SupplySpec> {
-        use crate::city::supply_kind::SupplyKind;
-
-        let prev = self.plant_status;
-        self.plant_status = self.next_status();
-
-        if self.plant_status == Boom {
-            // Limpieza final opcional
-            self.requires.clear();
-            self.scheduled_kinds.clear();
-            return None;
-        }
-
-        // Al ENTRAR a AtRisk por primera vez, crea pedidos si no existen.
-        if prev != AtRisk && self.plant_status == AtRisk && self.requires.is_empty() {
-            let dl = self.dead_line_policy;
-            self.requires.push(SupplySpec { kind: SupplyKind::NuclearMaterial, dead_line: dl, time_passed_ms: 0 });
-            self.requires.push(SupplySpec { kind: SupplyKind::Water,            dead_line: dl, time_passed_ms: 0 });
-        }
-
-        // En AtRisk o Critical, si hay requerimientos pendientes NO programados, pídelo.
-        if matches!(self.plant_status, AtRisk | Critical) {
-            return self.next_outstanding_to_schedule();
-        }
-
-        None
-    }
-
-
-    pub fn commit_delivery(&mut self, truck: &CargoTruck) {
+     pub fn commit_delivery(&mut self, truck: &CargoTruck) {
         let delivered_kind = truck.cargo.kind;
 
         //  Elimina el requerimiento por tipo
