@@ -211,6 +211,12 @@ fn next_status(&mut self) -> PlantStatus {
             .find(|req| !self.is_kind_scheduled(req.kind))
             .copied()
     }
+
+    /// Interno: ¿ya hay camión programado para este tipo?
+    fn is_kind_scheduled(&self, kind: crate::city::supply_kind::SupplyKind) -> bool {
+        self.scheduled_kinds.iter().any(|k| *k == kind)
+    }
+
 }
 /*
 
@@ -228,38 +234,9 @@ fn next_status(&mut self) -> PlantStatus {
             Boom     => Boom,
         }
     }
-
-    /// Interno: devuelve el siguiente SupplySpec pendiente que aún NO tenga camión programado.
-    fn next_outstanding_to_schedule(&self) -> Option<SupplySpec> {
-        self.requires
-            .iter()
-            .find(|req| !self.is_kind_scheduled(req.kind))
-            .copied()
-    }
-
-    /// Interno: ¿ya hay camión programado para este tipo?
-    fn is_kind_scheduled(&self, kind: crate::city::supply_kind::SupplyKind) -> bool {
-        self.scheduled_trucks.iter().any(|t| t.cargo.kind == kind)
-    }
-        pub fn commit_delivery(&mut self, truck: &CargoTruck) {
-            let delivered_kind = truck.cargo.kind;
-
-            // Elimina el requerimiento por ese tipo
-            let before = self.requires.len();
-            self.requires.retain(|req| req.kind != delivered_kind);
-
-            // También deja de considerarlo "programado"
-            self.scheduled_kinds.retain(|k| *k != delivered_kind);
-
-            // Si ya no hay requerimientos pendientes, sube un estado (máximo un nivel)
-            if before > 0 && self.requires.is_empty() {
-                self.plant_status = match self.plant_status {
-                    AtRisk   => Ok,
-                    Critical => AtRisk,
-                    other    => other,
-                };
-            }
-        }
-
-}
 */
+    /// Interno: devuelve el siguiente SupplySpec pendiente que aún NO tenga camión programado.
+
+
+
+
