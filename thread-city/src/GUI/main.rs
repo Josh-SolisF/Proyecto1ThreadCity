@@ -46,17 +46,22 @@ fn border_for_plant_status(ps: PlantStatus) -> (f64, f64, f64) {
 }
 
 fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
+
+    // Geometría del área en píxeles lógicos (GTK4 usa logical coords).
+    // allocation() da el rectángulo asignado al widget.
+
     let alloc = area.allocation();
     let w_px = alloc.width() as f64;
     let h_px = alloc.height() as f64;
-
+//Dimensiones del mundo (en celdas).
     let (w_cells, h_cells) = (hooks.world_size)();
     let w_cells = w_cells.max(1) as f64;
     let h_cells = h_cells.max(1) as f64;
-
+//tamaño de celda: intenta que todas las celdas quepan y sean cuadradas.
     let cell_w = (w_px / w_cells).floor();
     let cell_h = (h_px / h_cells).floor();
     let cell = cell_w.min(cell_h).max(1.0);
+    //Offsets para centrar el grid dentro del área
     let ox = (w_px - (cell * w_cells)).max(0.0) / 2.0;
     let oy = (h_px - (cell * h_cells)).max(0.0) / 2.0;
 
@@ -67,16 +72,18 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     for y in 0..(h_cells as i16) {
         for x in 0..(w_cells as i16) {
             let coord = Coord::new(x, y);
+            // ordenadas en píxeles para la esquina sup-izq de la celda.
             let x_px = ox + (x as f64) * cell;
             let y_px = oy + (y as f64) * cell;
 
-            // Base por tipo
+            // // Si no hay bloque, usamos un gris medio
             if let Some(bt) = (hooks.block_type_at)(coord) {
                 let (r, g, b) = color_for_block(&bt);
                 cr.set_source_rgb(r, g, b);
             } else {
                 cr.set_source_rgb(0.25, 0.25, 0.25);
             }
+            //quede una "rejilla" sutil entre celdas y no se vean pegadas
             cr.rectangle(x_px, y_px, cell - 1.0, cell - 1.0);
             cr.fill().unwrap();
 
@@ -139,11 +146,10 @@ pub(crate) fn build_ui(app: &Application, hooks: UiHooks) {
 
 fn main() {
     let app = Application::builder()
-        .application_id("com.helberth.citygtk")
+        .application_id("com.joshuaS.citygtk")
         .build();
 
     app.connect_activate(|app| {
-        // 👇 Aquí cableas tu Map/Handler/Plant reales:
         let hooks = make_hooks_from_world();
         build_ui(app, hooks);
     });
@@ -151,9 +157,7 @@ fn main() {
     app.run();
 }
 
-// ----------------------
-// Adapta estos "puentes" con tus instancias reales
-// ----------------------
+
 pub(crate) fn make_hooks_from_world() -> UiHooks {
     use std::collections::{HashMap, HashSet};
     use std::cell::RefCell;
@@ -164,12 +168,8 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
     use crate::cityblock::coord::Coord;
     use crate::cityblock::nuclearplant::plant_status::PlantStatus;
 
-    // Supón que tienes estas estructuras en tu runtime:
-    // - map: Rc<RefCell<Map>>
-    // - occupancy: Rc<RefCell<HashSet<Coord>>>  (o HashMap<Coord, ThreadId>)
-    // - plant(s): ya están dentro del map como bloques NuclearPlant
 
-    // Ejemplo placeholder (¡reemplaza con tus instancias!)
+    // Hay que reemplazar con el mapa de verdad!)
     let map = Rc::new(RefCell::new(dummy_map_3x3())); // <-- reemplaza con tu mapa real
     let occupancy = Rc::new(RefCell::new(HashSet::<(i16,i16)>::new())); // usa Coord si implementa Hash/Eq
 
@@ -191,7 +191,7 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
     let is_occupied = {
         let occupancy = Rc::clone(&occupancy);
         Rc::new(move |coord: Coord| -> bool {
-            // si usas HashSet<Coord>, guárdalo así; aquí uso tupla por simplicidad:
+            // Se usa la tupla para que sea más sencillo, pero si no también podemos usar el hashmap:
             occupancy.borrow().contains(&(coord.x, coord.y))
         })
     };
@@ -199,7 +199,7 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
     let plant_status_at = {
         let map = Rc::clone(&map);
         Rc::new(RefCell::new(move |coord: Coord| -> Option<PlantStatus> {
-            // Nota: requiere &mut Map por el as_any() en Block:
+
             map.borrow_mut().try_plant_status_at(coord)
         }))
     };
@@ -208,14 +208,10 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
         let map = Rc::clone(&map);
         let occupancy = Rc::clone(&occupancy);
         Rc::new(RefCell::new(move || {
-            // Aquí va tu "frame = 1 tick".
-            // p.ej.: avanza planta(s), actualiza camiones con call(plant_status),
-            // corre PLAN/COMMIT y actualiza Occupancy.
-            //
-            // Ejemplo placeholder: limpia/coloca un ocupante que se mueve.
+            // Aquí iría toda la logica de la ciudad, basicametne cada tick
             let mut occ = occupancy.borrow_mut();
             occ.clear();
-            // Marca, por ejemplo, (0,0) como ocupado (usa tu handler real)
+            // Marca, (0,0) como ocupado (usa tu handler real)
             occ.insert((0,0));
         }))
     };
@@ -229,7 +225,7 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
     }
 }
 
-// --------- DUMMY MAP (solo para compilar el ejemplo) ----------
+// --------- DUMMY MAP
 fn dummy_map_3x3() -> crate::cityblock::map::Map {
     use crate::cityblock::Block;
     use crate::cityblock::road::RoadBlock;
@@ -244,13 +240,9 @@ fn dummy_map_3x3() -> crate::cityblock::map::Map {
         for x in 0..3 {
             if x == 1 && y == 1 {
                 // crea una NuclearPlant con update_interval_ms=30
-                let plant = NuclearPlantBlock::new(/*id*/ 100 + y as usize * 3 + x as usize,
-                                                   /*coord? si tu ctor lo pide, ajústalo*/
-                                                   /* deadline */ 100,
-                                                   /* interval */ 30);
+                let plant = NuclearPlantBlock::new(/*id*/ 100 + y as usize * 3 + x as usize,100,30);
                 row.push(Box::new(plant));
-            } else {
-                row.push(Box::new(RoadBlock::new(/*id*/ 100 + y as usize * 3 + x as usize)));
+            } else {row.push(Box::new(RoadBlock::new(/*id*/ 100 + y as usize * 3 + x as usize)));
             }
         }
         grid.push(row);
