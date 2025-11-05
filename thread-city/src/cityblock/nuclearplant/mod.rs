@@ -1,9 +1,5 @@
 use std::any::Any;
-use std::cell::RefCell;
-use std::rc::Rc;
-use mypthreads::mythread::mypthread::MyPThread;
 use crate::city::supply_kind::SupplyKind;
-use crate::cityblock::map::Map;
 use crate::cityblock::{Block, BlockBase};
 use crate::cityblock::block_type::BlockType;
 use crate::cityblock::block_type::BlockType::NuclearPlant;
