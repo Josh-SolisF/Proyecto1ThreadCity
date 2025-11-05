@@ -14,7 +14,7 @@ use crate::cityblock::nuclearplant::plant_status::PlantStatus;
 
 // ---- UI Hooks: cómo la GUI consulta tu mundo ----
 #[derive(Clone)]
-struct UiHooks {
+pub struct UiHooks {
     world_size: Rc<dyn Fn() -> (i16, i16)>,
     block_type_at: Rc<dyn Fn(Coord) -> Option<BlockType>>,
     is_occupied: Rc<dyn Fn(Coord) -> bool>,
