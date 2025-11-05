@@ -104,7 +104,7 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     }
 }
 
-fn build_ui(app: &Application, hooks: UiHooks) {
+pub(crate) fn build_ui(app: &Application, hooks: UiHooks) {
     let win = ApplicationWindow::builder()
         .application(app)
         .title("City Traffic (GTK)")
@@ -154,7 +154,7 @@ fn main() {
 // ----------------------
 // Adapta estos "puentes" con tus instancias reales
 // ----------------------
-fn make_hooks_from_world() -> UiHooks {
+pub(crate) fn make_hooks_from_world() -> UiHooks {
     use std::collections::{HashMap, HashSet};
     use std::cell::RefCell;
     use std::rc::Rc;

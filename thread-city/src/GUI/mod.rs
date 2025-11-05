@@ -1,1 +1,1 @@
-mod main;
+pub(crate) mod main;
