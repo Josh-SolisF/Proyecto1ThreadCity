@@ -31,18 +31,21 @@ pub struct UiHooks {
     tick: Rc<RefCell<dyn FnMut()>>, // avanza 1 frame
 }
 
+
 fn color_for_block(bt: &BlockType) -> (f64, f64, f64) {
     use crate::cityblock::block_type::BlockType::*;
     match bt {
-        Road => (0.80, 0.80, 0.80),
-        Bridge => (0.60, 0.80, 1.00),
-        Shop => (0.93, 0.90, 0.60),
-        Dock => (0.60, 0.60, 0.90),
-        Water => (0.45, 0.70, 1.00),
-        NuclearPlant => (0.92, 0.65, 0.65),
-        _ => (0.85, 0.85, 0.85),
+        Road          => (0.00, 0.00, 0.00), // negro
+        Bridge        => (0.60, 0.80, 1.00), // lo dejo como estaba (azulado) para distinguir de carretera
+        Shop          => (1.00, 0.55, 0.00), // naranja (tipo #FF8C00)
+        Dock          => (0.59, 0.29, 0.00), // marrón (tipo #964B00)
+        Water         => (0.00, 0.50, 1.00), // azul (tipo #0080FF)
+        NuclearPlant  => (0.00, 0.70, 0.20), // verde (levemente distinto al borde Ok para que contraste)
+        _             => (0.85, 0.85, 0.85), // por defecto gris claro
     }
 }
+
+
 
 fn border_for_plant_status(ps: PlantStatus) -> (f64, f64, f64) {
     use crate::cityblock::nuclearplant::plant_status::PlantStatus::*;

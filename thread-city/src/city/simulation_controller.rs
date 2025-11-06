@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::city::traffic_handler::TrafficHandler;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::map::Map;
@@ -6,7 +8,7 @@ use crate::cityblock::nuclearplant::NuclearPlantBlock;
 pub struct SimulationController<'a> {
     pub(crate) traffic: TrafficHandler<'a>,
     pub(crate) nuclear_plants: Vec<NuclearPlantBlock>,
-    pub(crate) map: Map,
+    pub(crate) map: Rc<RefCell<Map>>,
 }
 
 impl<'a> SimulationController<'a> {
