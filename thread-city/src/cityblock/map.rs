@@ -143,38 +143,6 @@ impl Map {
     }
     pub fn map_25x25_with_all_blocks() -> Map {
         let mut grid: Vec<Vec<Box<dyn Block>>> = Vec::with_capacity(25);
-/*
-        // y = 1
-        grid.push(vec![
-            Box::new(RoadBlock::new(0)),
-            Box::new(RoadBlock::new(1)),
-            Box::new(RoadBlock::new(2)),
-            Box::new(RoadBlock::new(3)),
-            Box::new(RoadBlock::new(4)),
-            Box::new(RoadBlock::new(5)),
-            Box::new(RoadBlock::new(6)),
-            Box::new(RoadBlock::new(7)),
-            Box::new(RoadBlock::new(8)),
-            Box::new(RoadBlock::new(9)),
-            Box::new(RoadBlock::new(10)),
-            Box::new(RoadBlock::new(11)),
-            Box::new(RoadBlock::new(12)),
-            Box::new(RoadBlock::new(13)),
-            Box::new(RoadBlock::new(14)),
-            Box::new(RoadBlock::new(15)),
-            Box::new(RoadBlock::new(16)),
-            Box::new(RoadBlock::new(17)),
-            Box::new(RoadBlock::new(18)),
-            Box::new(RoadBlock::new(19)),
-            Box::new(RoadBlock::new(20)),
-            Box::new(RoadBlock::new(21)),
-            Box::new(RoadBlock::new(22)),
-            Box::new(RoadBlock::new(23)),
-            Box::new(RoadBlock::new(24)),
-            Box::new(RoadBlock::new(25)),
-        ]);
-*/
-
 
         // y = 0
         grid.push(vec![
