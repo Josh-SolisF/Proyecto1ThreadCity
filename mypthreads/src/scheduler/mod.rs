@@ -14,13 +14,13 @@ use crate::mythread::mythread::ThreadId;
 
 
 pub trait Scheduler {
-    /// Encola un hilo listo
+    // Encola un hilo listo
     fn enqueue(&mut self, tid: ThreadId, t: &MyThread);
 
-    /// Saca el siguiente hilo a ejecutar (None si vacío)
+    // Saca el siguiente hilo a ejecutar (None si vacío)
     fn pick_next(&mut self) -> Option<ThreadId>;
 
-    /// Eventos
+    // Eventos
     fn on_block(&mut self, _tid: ThreadId) {}
     fn on_exit(&mut self, _tid: ThreadId) {}
 

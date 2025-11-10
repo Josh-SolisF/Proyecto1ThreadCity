@@ -44,7 +44,7 @@ impl MyTRuntime {
         // Validaciones básicas
         let t = match self.threads.get_mut(&tid) {
             Some(t) => t,
-            None => return -1, // no existe
+            None => return -1,
         };
 
         if t.state == ThreadState::Terminated {
@@ -57,23 +57,23 @@ impl MyTRuntime {
             return 0;
         }
 
-        // Cambiar el campo del hilo
+        // Cambiar el tipo de scheduler del hilo
         t.scheduler = new_kind;
 
-        // Reconstruir colas Ready de los schedulers para asegurar consistencia
+        // Reconstruir colas de los que están en ready de los schedulers para asegurar consistencia
         self.rebuild_ready_queues();
 
         0
     }
 
-    /// Reconstruye las colas de los schedulers desde el estado de los hilos.
+
     fn rebuild_ready_queues(&mut self) {
         // Reinicializarlas
         self.schedulers.insert(SchedulerType::RoundRobin, Box::new(RRScheduler::new()));
         self.schedulers.insert(SchedulerType::Lottery,    Box::new(LotteryScheduler::new()));
         self.schedulers.insert(SchedulerType::RealTime,   Box::new(RealTimeScheduler::new()));
 
-        // Re-encolar hilos en estado Ready en su scheduler actual
+        // Reencolar hilos en estado Ready en su scheduler actual
         for (&tid, t) in self.threads.iter() {
             if t.state == ThreadState::Ready {
                 if let Some(s) = self.schedulers.get_mut(&t.scheduler) {
@@ -87,7 +87,7 @@ impl MyTRuntime {
         self.time_ms = self.time_ms.saturating_add(passed);
     }
 
-    /// Crea un hilo en estado Ready y lo encola.
+    // Crea un hilo en estado Ready y lo encola.
     pub fn create(&mut self,thread_out: *mut ThreadId,attr: *mut MyThreadAttr,start_routine: MyTRoutine,args: *mut AnyParam,scheduler: Option<SchedulerType>,
     ) -> c_int {
         let id = self.next_id;
@@ -105,7 +105,7 @@ impl MyTRuntime {
             let t = self.threads.get(&id).unwrap();
             s.enqueue(id, t);
         } else {
-            return -1; // no debería ocurrir
+            return -1; // no debería llegar aquí nunca
         }
 
 
@@ -119,7 +119,7 @@ impl MyTRuntime {
 
 
 
-    /// Política global: RealTime > Lottery > RoundRobin
+    // RealTime > Lottery > RoundRobin en orden
     fn pick_any_next(&mut self) -> Option<ThreadId> {
         for kind in [SchedulerType::RealTime, SchedulerType::Lottery, SchedulerType::RoundRobin] {
             if let Some(s) = self.schedulers.get_mut(&kind) {
@@ -135,7 +135,7 @@ impl MyTRuntime {
 
 
     fn run_thread(&mut self, tid: ThreadId) {
-        // Aquí haces el “contexto”/ejecución. En esta base: run-to-completion.
+        // Aquí se haría el “contexto” si nos da tiempo de hacerlo.
         let (routine, arg, scheduler_kind, detached);
         {
             let t = self.threads.get_mut(&tid).unwrap();
@@ -158,21 +158,21 @@ impl MyTRuntime {
             s.on_exit(tid);
         }
 
-        // Despertar joiners, cleanup si detached, etc.
+        // Despertar joiners.
         self.wake_joiners(&tid);
         if detached {
-            // reclaim resources si lo queremos implementar
+
         }
     }
 
-    /// Ejecuta un próximo hilo si existe (scheduler decide).
+    // Ejecuta un próximo hilo si existe (scheduler decide).
     pub fn schedule_next(&mut self) -> c_int {
         if let Some(next) = self.pick_any_next() {
             self.current = Some(next);
 
             if let Some(th) = self.threads.get(&next) {
                 if th.state == ThreadState::Terminated {
-                    // Nada que hacer; despierta joiners y sigue
+                    // Nada que hacer, despierta joiners y sigue
                     self.wake_joiners(&next);
                     return 0;
                 }
@@ -191,7 +191,7 @@ impl MyTRuntime {
 
 
 
-    /// Cambia el estado del hilo si existe.
+    // Cambia el estado del hilo si existe.
     pub fn set_state(&mut self, tid: ThreadId, st: ThreadState) {
         if let Some(t) = self.threads.get_mut(&tid) {
             t.state = st;
@@ -206,7 +206,7 @@ impl MyTRuntime {
         }
     }
 
-    /// Devuelve el estado actual (útil para tests).
+    // Devuelve el estado actual (para tests).
     pub fn get_state(&self, tid: ThreadId) -> Option<ThreadState> {
         self.threads.get(&tid).map(|t| t.state)
     }
@@ -244,19 +244,19 @@ impl MyTRuntime {
 
     pub fn end_current(&mut self, retval: *mut AnyParam, ) -> c_int {
         let Some(cur) = self.current else {
-            // No hay hilo en ejecución; no debería pasar, pero devolvemos error
+            // No hay hilo en ejecución devolvemos error
             return -1;
         };
 
-        // Marca terminado y guarda el retorno
+        // Marca terminado y guarda el retorno (que no tenemos aun)
         if let Some(th) = self.threads.get_mut(&cur) {
             th.ret_val = retval;
             th.state = ThreadState::Terminated;
         } else {
-            return -1; // el TID actual no está en el mapa (inconsistencia)
+            return -1; // el TID actual no está en el mapa
         }
 
-        // Despierta a los joiners (si implementaste join bloqueante)
+        // Despierta a los joiners
         self.wake_joiners(&cur);
 
         // Limpia current y selecciona siguiente
@@ -304,9 +304,8 @@ impl MyTRuntime {
 */
 
 
-    /// join controlado por el scheduler.
-    /// Bloquea el hilo actual hasta que `tid` termine.
-    /// ya no tiene run
+    // join controlado por el scheduler, bloquea el hilo actual hasta que `tid` termine.
+
     pub fn join(&mut self, target: ThreadId, ret_val_out: *mut *mut AnyParam) -> c_int {
         //  Validaciones básicas
 
@@ -319,19 +318,19 @@ impl MyTRuntime {
         let is_detached = unsafe { (*target_exists.attr).detached };
         if is_detached {return -1;}
 
-        // Si ya terminó, retorna inmediatamente su valor
+        // Si ya terminó, retorna su valor
         if target_exists.state == ThreadState::Terminated {
             if !ret_val_out.is_null() {unsafe { *ret_val_out = target_exists.ret_val as *mut AnyParam; }}
             return 0;
         }
 
-        // MODO DRIVER: no hay hilo actual (join desde el hilo de prueba / fuera del runtime)
+        // MODO DRIVER, esto es solo para las pruebas, no hay hilo actual (join desde el hilo de prueba / fuera del runtime)
         if self.current.is_none() {
             loop {
-                // ¿terminó el target?
+                // terminó el target?
                 let done = match self.threads.get(&target) { Some(t) => t.state == ThreadState::Terminated, None => true };
                 if done {break;}
-                // Avanzar el scheduler, si no hay nada para correr y no terminó -> deadlock
+                // Avanza el scheduler, si no hay nada para correr y no terminó
                 if self.schedule_next() != 0 {return -1;}
             }
             if let Some(t) = self.threads.get(&target) {
@@ -342,31 +341,31 @@ impl MyTRuntime {
             return 0;
         }
 
-        // MODO RUNTIME: hay hilo actual, aplicar bloqueo y espera
+        // MODO RUNTIME (el para no test) hay hilo actual, aplicar bloqueo y espera
         let current_tid = match self.current {Some(id) => id, None => unreachable!()};
         if current_tid == target {return -1;}
 
-        // Registrar que el hilo "current" espera a "target" (un solo joiner)
+        // Registrar que el hilo "current" espera a "target"
         {
             let waiters = self.wait_on.entry(target).or_default();
             if waiters.iter().any(|&w| w == current_tid) {return -1;}
             if !waiters.is_empty() {return -1;} waiters.push(current_tid);
         }
 
-        // Bloquear al hilo actual y ceder el CPU
+        // Bloquea al hilo actual y ceder el CPU
         {
             let cur = self.threads.get_mut(&current_tid).unwrap();
             cur.state = ThreadState::Blocked;
         }
 
         // dejamos que el scheduler corra otros hilos hasta que el objetivo termine (wake_joiners lo reactivará) y
-        // nos vuelvan a programar (self.current == Some(current_tid))
+        // se vuelve a meter
         loop {
             // Si el objetivo ya terminó, salimos del loop para devolver ret_val
             if let Some(t) = self.threads.get(&target) {if t.state == ThreadState::Terminated {break;}}
             else {break;}
 
-            // Pedimos al runtime que ejecute el siguiente hilo disponible schedule_next() hará run-to-completion del elegido,
+            // Que el runtime ejecute el siguiente hilo disponible schedule_next() hará run-to-completion del elegido,
             // y al terminar "target", llamará a wake_joiners() que nos re-encola.
             if self.schedule_next() != 0 {return -1;}
 

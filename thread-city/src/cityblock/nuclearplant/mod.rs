@@ -53,8 +53,8 @@ impl NuclearPlantBlock {
         }
     }
 
-    /// Avanza el "reloj". Solo decide si hay transición y la aplica.
-    /// Devuelve siempre None (firma preservada para compatibilidad).
+    // Avanza el "reloj". Solo decide si hay transición y la aplica.
+    // Devuelve siempre None (firma preservada para compatibilidad).
     pub fn advance_time(&mut self, time_passed: usize) -> Option<SupplySpec> {
         if self.plant_status == Boom { return None; }
 
@@ -71,7 +71,7 @@ impl NuclearPlantBlock {
         None
     }
 
-    /// Pone los 2 requerimientos por defecto al entrar en AtRisk.
+    // Pone los 2 requerimientos por defecto al entrar en AtRisk.
     fn enqueue_default_requirements(&mut self) {
         let dl = self.dead_line_policy;
         self.requires.clear();
@@ -79,7 +79,7 @@ impl NuclearPlantBlock {
         self.requires.push(SupplySpec { kind: SupplyKind::Water,            dead_line: dl, time_passed_ms: 0 });
     }
 
-    /// La planta crea camiones para cada requerimiento pendiente sin camión programado.
+    // La planta crea camiones para cada requerimiento pendiente sin camión programado.
     pub fn spawn_trucks_for_pending_requirements<F>(
         &mut self,
         plant_coord: Coord,
@@ -101,7 +101,7 @@ impl NuclearPlantBlock {
 
             let origin = pick_origin(req);
             let speed = 1;
-            // Nota: si SupplySpec no es Copy, usa `req.clone()`.
+            // Si SupplySpec no es Copy, usa `req.clone()`.
             let truck = CargoTruck::new(origin, plant_coord, speed, *req);
 
             // Marca como programado (por tipo) y lo retorna para que tu runtime lo registre.
@@ -118,8 +118,8 @@ impl NuclearPlantBlock {
         }
     }
 
-    /// Llamar cuando un camión llega y entrega.
-    /// Si cumple todos los pedidos pendientes, la planta sube un nivel (máximo uno).
+    // Llamar cuando un camión llega y entrega.
+    // Si cumple todos los pedidos pendientes, la planta sube un nivel (máximo uno).
     pub fn commit_delivery(&mut self, truck: &CargoTruck) {
         let delivered_kind = truck.cargo.kind;
 
@@ -160,7 +160,7 @@ impl NuclearPlantBlock {
                 }
             }
             Critical => {
-                //
+
             }
             Boom => {
                 // kaboom

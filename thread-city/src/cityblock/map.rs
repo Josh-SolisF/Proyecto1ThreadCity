@@ -95,19 +95,19 @@ impl Map {
 
 
 
-    /// Ancho en celdas
+    // Ancho en celdas
     #[inline]
     pub fn width_cells(&self) -> i16 { self.width }
 
-    /// Alto en celdas
+    // Alto en celdas
     #[inline]
     pub fn height_cells(&self) -> i16 { self.height }
 
-    /// (width, height)
+    // (width, height)
     #[inline]
     pub fn size_cells(&self) -> (i16, i16) { (self.width, self.height) }
 
-    /// Itera todas las coordenadas del mapa (de izquierda a derecha, arriba a abajo).
+    // Itera todas las coordenadas del mapa (de izquierda a derecha, arriba a abajo).
     pub fn coords_iter(&self) -> impl Iterator<Item = Coord> + '_ {
         (0..self.height).flat_map(move |y| {
             (0..self.width).map(move |x| Coord::new(x, y))

@@ -44,12 +44,12 @@ mod tests {
                 let mut pth: MyPThread = MyPThread::new();
 
                 let mut tid: ThreadId = 0;
-                // deadline = MAX (irrelevante para Lottery), priority=tickets (e.g., 10)
+                // deadline = MAX para timepo real, 
                 let mut attr: MyThreadAttr = MyThreadAttr::new(usize::MAX, 10);
 
                 let mut retval: *mut AnyParam = ptr::null_mut();
 
-                // Crear hilo con scheduler por defecto (None -> RoundRobin)
+                // Crear hilo con scheduler por defecto osea RR
                 let r = pth.my_thread_create(
                     &mut tid,
                     &mut attr,
@@ -181,7 +181,7 @@ mod tests {
 
             assert!(!returned_my.is_null(), "El puntero retornado (my_thread_create) es nulo");
             assert_eq!(*returned_my, 15, "Valor incorrecto en my_thread_create (esperado 15)");
-            println!("✅ Mypthread funciona correctamente y retorna el valor esperado 15 = {}", *returned_my);
+            println!(" Mypthread funciona correctamente y retorna el valor esperado 15 = {}", *returned_my);
         }
     }
 
@@ -214,7 +214,7 @@ mod tests {
                 let ret = results[i] as *mut i32;
                 assert_eq!(*ret, 42, "El hilo {:?} no retornó 42", i);
             }
-            println!("✅ Todos los hilos retornan el valor esperado.");
+            println!("Todos los hilos retornan el valor esperado.");
         }
     }
 
@@ -262,7 +262,7 @@ mod tests {
             let state = pth.runtime.get_state(after);
             assert!(state == Some(ThreadState::Running) || state == Some(ThreadState::Terminated));
             println!(
-                "✅ my_thread_yield cambió de hilo correctamente: {:?} → {:?}",
+                "my_thread_yield cambió de hilo correctamente: {:?} → {:?}",
                 before, after
             );
         }
@@ -299,7 +299,7 @@ mod tests {
                 "El hilo no fue marcado como Terminated"
             );
             assert!(pth.runtime.get_current().is_none(), "current no fue limpiado");
-            println!("✅ my_thread_end marcó correctamente el hilo como Terminated.");
+            println!("my_thread_end marcó correctamente el hilo como Terminated.");
         }
     }
 
@@ -329,7 +329,7 @@ mod tests {
             // El hilo debe seguir existiendo, pero marcado como detached
             let maybe_thread = pth.runtime.threads.get(&tid);
             assert!(maybe_thread.is_some(), "El hilo debería seguir en la tabla");
-            println!("✅ my_thread_detach ejecutado y el hilo sigue activo.");
+            println!("my_thread_detach ejecutado y el hilo sigue activo.");
         }
     }
 
@@ -349,7 +349,7 @@ mod tests {
             let res_destroy = pth.my_mutex_destroy(&mut mutex as *mut MyMutex);
             assert_eq!(res_destroy, 0, "my_mutex_destroy falló");
             assert!(!mutex.initialized, "El mutex debería haberse desinicializado");
-            println!("✅ my_mutex_init y my_mutex_destroy ejecutados correctamente.");
+            println!("my_mutex_init y my_mutex_destroy ejecutados correctamente.");
         }
     }
 
@@ -388,7 +388,7 @@ mod tests {
             // Desbloquear mutex
             let res_unlock = pth.my_mutex_unlock(&mut mutex as *mut MyMutex);
             assert_eq!(res_unlock, 0, "my_mutex_unlock no retornó Ok (0)");
-            println!("✅ my_mutex_lock y my_mutex_unlock ejecutados correctamente.");
+            println!("my_mutex_lock y my_mutex_unlock ejecutados correctamente.");
         }
     }
 
@@ -407,7 +407,7 @@ mod tests {
             let res_unlock = pth.my_mutex_unlock(null_mutex);
             assert_ne!(res_unlock, 0, "my_mutex_unlock debería fallar con mutex nulo");
 
-            println!("✅ Comportamiento de puntero nulo verificado en funciones de mutex.");
+            println!("Comportamiento de puntero nulo verificado en funciones de mutex.");
         }
     }
 

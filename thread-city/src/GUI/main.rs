@@ -21,13 +21,13 @@ use crate::cityblock::shopblock::shop::Shop;
 use crate::cityblock::shopblock::ShopBlock;
 use crate::cityblock::water::WaterBlock;
 
-// ---- UI Hooks: cómo la GUI consulta tu mundo ----
+//  UI Hooks: cómo la GUI consulta 
 #[derive(Clone)]
 pub struct UiHooks {
     world_size: Rc<dyn Fn() -> (i16, i16)>,
     block_type_at: Rc<dyn Fn(Coord) -> Option<BlockType>>,
     is_occupied: Rc<dyn Fn(Coord) -> bool>,
-    plant_status_at: Rc<RefCell<dyn FnMut(Coord) -> Option<PlantStatus>>>, // necesita &mut Map p/ downcast
+    plant_status_at: Rc<RefCell<dyn FnMut(Coord) -> Option<PlantStatus>>>, 
     tick: Rc<RefCell<dyn FnMut()>>, // avanza 1 frame
 }
 
@@ -36,11 +36,11 @@ fn color_for_block(bt: &BlockType) -> (f64, f64, f64) {
     use crate::cityblock::block_type::BlockType::*;
     match bt {
         Road          => (0.00, 0.00, 0.00), // negro
-        Bridge        => (0.60, 0.80, 1.00), // lo dejo como estaba (azulado) para distinguir de carretera
+        Bridge        => (0.60, 0.80, 1.00), // (azulado) para distinguir de carretera
         Shop          => (1.00, 0.55, 0.00), // naranja (tipo #FF8C00)
         Dock          => (0.59, 0.29, 0.00), // marrón (tipo #964B00)
         Water         => (0.00, 0.50, 1.00), // azul (tipo #0080FF)
-        NuclearPlant  => (0.00, 0.70, 0.20), // verde (levemente distinto al borde Ok para que contraste)
+        NuclearPlant  => (0.00, 0.70, 0.20), // verde 
         _             => (0.85, 0.85, 0.85), // por defecto gris claro
     }
 }
@@ -182,7 +182,7 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
     use crate::cityblock::nuclearplant::plant_status::PlantStatus;
 
 
-    // Hay que reemplazar con el mapa de verdad!)
+    // Hay que reemplazar con el mapa de verdad
 
 
     let map: Rc<RefCell<Map>> = Rc::new(RefCell::new(map_25x25_with_all_blocks()));

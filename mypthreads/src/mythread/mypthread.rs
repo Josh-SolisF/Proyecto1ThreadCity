@@ -61,7 +61,7 @@ impl MyPThread {
             return MutexNotInitialized as c_int;
         }
         unsafe {
-            // Attr lo ignoramos porque no usaremos distintos tipos de mutex
+            // Attr  ignorado
             (*mutex).init_mut()
         }
     }

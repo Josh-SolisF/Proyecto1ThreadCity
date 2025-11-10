@@ -101,7 +101,7 @@ impl VehicleBase {
     #[inline]
     pub fn thread(&self) -> ThreadId { self.thread_id.expect("Vehicle without ThreadId") }
 
-    /// Propone el próximo movimiento (no altera estado global).
+    // Propone el próximo movimiento (no altera estado global).
     pub fn plan_next(&self, map: & Map) -> MoveIntent {
         let Some(path) = self.path.as_ref() else {
             panic!("Vehicle not initialized!");

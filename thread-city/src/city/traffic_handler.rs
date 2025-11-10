@@ -75,7 +75,7 @@ impl<'a> TrafficHandler<'a> {
     }
 
     pub fn advance_time(&mut self) {
-        // ---------- FASE 1: ADVANCE IN ROADS AND PREPARE BRIDGES ----------
+        //  Avanza en la carretera u prepara los puentes
         let mut planned_for_bridge: HashMap<Coord, Vec<ThreadId>> = HashMap::new();
         for tid in self.vehicles.keys().cloned().collect::<Vec<_>>() {
             if let Some(v_type) = self.vehicles.get(&tid) {
@@ -96,7 +96,7 @@ impl<'a> TrafficHandler<'a> {
             }
         }
 
-        // ---------- FASE 2: TRY ENTER BRIDGES ----------
+        // Tratar de entrar en los puentes
         for key in planned_for_bridge.keys() {
             let t_keys = planned_for_bridge.get_key_value(key).unwrap().1;
             let candidates: Vec<_> = t_keys

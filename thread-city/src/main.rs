@@ -12,7 +12,6 @@ fn main() {
         .build();
 
     app.connect_activate(|app| {
-        // 👇 Aquí cableas tu Map/Handler/Plant reales:
         let hooks = crate::GUI::main::make_hooks_from_world();
         crate::GUI::main::build_ui(app, hooks);
     });
