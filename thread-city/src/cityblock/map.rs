@@ -143,7 +143,6 @@ impl Map {
             Box::new(RoadBlock::new(6)),
             Box::new(RoadBlock::new(7)),
             Box::new(RoadBlock::new(8)),
-            Box::new(RoadBlock::new(9)),
             Box::new(ShopBlock::new(10,vec![Shop::new("TacoBell #1".parse().unwrap()), Shop::new("TacoBell #2".parse().unwrap())])),
             Box::new(ShopBlock::new(11,vec![Shop::new("KFC #1".parse().unwrap()), Shop::new("KFC #2".parse().unwrap())])),
             Box::new(ShopBlock::new(12,vec![Shop::new("BurgerKing #1".parse().unwrap()), Shop::new("BurgerKing #2".parse().unwrap())])),
