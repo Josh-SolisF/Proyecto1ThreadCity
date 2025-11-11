@@ -43,6 +43,8 @@ pub fn build_column_map_with_bridge() -> Map {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
     use mypthreads::mythread::mythread::ThreadId;
     use super::*; // importa TrafficHandler, Car, etc.
     use crate::city::traffic_handler::TrafficHandler;
@@ -50,21 +52,20 @@ mod tests {
     use crate::vehicle::vehicle::{Vehicle, MoveIntent};
     /// Crea un handler, inserta un coche determinísticamente, y fija ocupación/reloj.
     fn setup_handler_with_car(origin: (usize,usize), dest: (usize,usize))
-                              -> (TrafficHandler<'static>, ThreadId)
+                              -> (TrafficHandler, ThreadId)
     {
         // Para prestar 'static en tests, guardamos el mapa en un Box y luego
         // hacemos 'leak' controlado SOLO dentro del test (válido en tests).
-        let map = Box::new(build_column_map_4x1());
-        let map_ref: &'static mut Map = Box::leak(map);
+        let map = Rc::new(RefCell::new(Map::map_25x25_with_all_blocks()));
 
-        let mut handler = TrafficHandler::new(map_ref, vec![]);
+        let mut handler = TrafficHandler::new(map, vec![]);
         let tid: ThreadId = 1; // ajusta si ThreadId no es usize
 
         // Construimos el auto de forma determinista, sin random
         let origin_c = c(origin.0, origin.1);
         let dest_c   = c(dest.0, dest.1);
         let mut car = Car::new(origin_c, dest_c);
-        car.initialize(&**handler.map.borrow_mut(), tid);
+        car.initialize(&*handler.map.borrow_mut(), tid);
 
         // Insertamos manualmente (evitamos new_car() que usa random)
         handler.vehicles.insert(tid, Box::new(car));

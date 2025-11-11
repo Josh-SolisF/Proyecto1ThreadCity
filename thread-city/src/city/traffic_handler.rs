@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use rand::prelude::IndexedRandom;
 use mypthreads::mythread::mythread::ThreadId;
 use crate::cityblock::block_type::BlockType::{Bridge, Dock, Road, Shops, Water, NuclearPlant};
@@ -18,29 +19,33 @@ use crate::vehicle::vehicle::PatienceLevel::{Maxed, Low, Critical, Starved};
 use crate::vehicle::vehicle_type::VehicleType;
 use crate::vehicle::vehicle_type::VehicleType::{ShipE, TruckE};
 
-pub struct TrafficHandler<'a> {
+pub struct TrafficHandler{
     pub(crate) vehicles: HashMap<ThreadId, Box<dyn Vehicle>>,
     road_coords: Vec<Coord>,
     shops_coords: Vec<Coord>,
     water_spawns: Vec<Coord>,
     dock: Option<Coord>,
-    pub(crate) map: RefCell<&'a mut Map>,
+    pub(crate) map: Rc<RefCell<Map>>,
     pub(crate) passed_frames: usize,
     pub(crate) fails_by_type: HashMap<VehicleType, u8>,
     pub(crate) fails: Vec<ThreadId>,
     pub(crate) successes: Vec<ThreadId>,
 }
 
-impl<'a> TrafficHandler<'a> {
-    pub fn new(map: &'a mut Map, water_spawns: Vec<Coord>) -> Self {
-        let dock = map.find_blocks(Dock).get(0).cloned(); // <- sin unwrap
+impl TrafficHandler {
+    pub fn new(map: Rc<RefCell<Map>>
+               , water_spawns: Vec<Coord>) -> Self {
+        let dock = map.borrow().find_blocks(Dock).get(0).cloned();
+        let roads = map.borrow().find_blocks(Road).clone();
+        let shops = map.borrow().find_blocks(Shops).clone();
+        
         Self {
             vehicles: HashMap::new(),
-            road_coords: map.find_blocks(Road),
-            shops_coords: map.find_blocks(Shops),
+            road_coords: roads,
+            shops_coords: shops,
             water_spawns,
             dock,
-            map: RefCell::from(map),
+            map,
             passed_frames: 0,
             fails_by_type: HashMap::new(),
             successes: Vec::new(),
@@ -120,7 +125,7 @@ impl<'a> TrafficHandler<'a> {
         let mut map = self.map.borrow_mut();
         let (intent, from, v_type) = {
             let vref: &Box<dyn Vehicle> = self.vehicles.get_mut(tid)?;
-            (vref.plan_next_move(&**map), vref.current(), *vref.get_type())
+            (vref.plan_next_move(&map), vref.current(), *vref.get_type())
         };
         match intent {
             MoveIntent::Arrived => {
@@ -175,7 +180,7 @@ impl<'a> TrafficHandler<'a> {
         let mut map = self.map.borrow_mut();
         let (intent, from, v_type) = {
             let vref: &Box<dyn Vehicle> = self.vehicles.get_mut(tid)?;
-            (vref.plan_next_move(&**map), vref.current(), *vref.get_type())
+            (vref.plan_next_move(&map), vref.current(), *vref.get_type())
         };
         match intent {
             MoveIntent::Arrived => {

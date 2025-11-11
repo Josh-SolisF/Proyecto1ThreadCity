@@ -23,7 +23,6 @@ pub struct Map {
     pub(crate) height: i16,
     pub(crate) width: i16,
 }
-
 impl Map {
     pub fn build_custom(grid: Vec<Vec<Box<dyn Block>>>) -> Map {
         let height = grid.len() as i16;
@@ -89,7 +88,6 @@ impl Map {
                 }
             }
         }
-
         matches
     }
 
@@ -130,16 +128,6 @@ impl Map {
         } else {
             None
         }
-    }
-
-    pub fn get_plants(&mut self) -> Vec<NuclearPlantBlock> {
-        let mut plants = Vec::new();
-        let coords = self.find_blocks(NuclearPlant);
-        for c in coords {
-            let plant = self.grid.get_mut(c.y as usize).unwrap().get_mut(c.x as usize);
-            plants.push(plant.unwrap().as_any().downcast_mut::<NuclearPlantBlock>().unwrap());
-        }
-        plants
     }
     pub fn map_25x25_with_all_blocks() -> Map {
         let mut grid: Vec<Vec<Box<dyn Block>>> = Vec::with_capacity(25);
