@@ -35,20 +35,21 @@ impl Map {
     }
 
     #[inline]
-    pub fn get_block_at(&mut self, c: Coord) -> Option<&mut dyn Block> {
-        if self.in_bounds(c) {
-            Some(&mut *self.grid[c.y as usize][c.x as usize])
-        } else {
-            None
-        }
-    }
     #[inline]
     pub fn block_at(&self, c: Coord) -> Option<&dyn Block> {
-        if self.in_bounds(c) {
-            Some(&*self.grid[c.y as usize][c.x as usize])
-        } else {
-            None
-        }
+        let x = usize::try_from(c.x).ok()?;
+        let y = usize::try_from(c.y).ok()?;
+        self.grid.get(y).and_then(|row| row.get(x)).map(|b| &**b)
+    }
+
+    #[inline]
+    pub fn get_block_at(&mut self, c: Coord) -> Option<&mut dyn Block> {
+        let x = usize::try_from(c.x).ok()?;
+        let y = usize::try_from(c.y).ok()?;
+        self.grid
+            .get_mut(y)
+            .and_then(|row| row.get_mut(x))
+            .map(|b| &mut **b)
     }
 
     pub fn block_type_at(&self, c: Coord) -> Option<BlockType> {
@@ -65,12 +66,11 @@ impl Map {
     pub fn in_bounds(&self, coord: Coord) -> bool {
         coord.x >= 0 && coord.y >= 0 && coord.x < self.width as i16 && coord.y < self.height as i16
     }
+
     pub fn policy_at(&self, coord: Coord) -> Option<TransportPolicy> {
-        if self.in_bounds(coord) {
-            return Some(*self.grid[coord.y as usize][coord.x as usize].get_policy());
-        }
-        None
+        self.block_at(coord).map(|b| *b.get_policy())
     }
+
     pub fn neighbors(&self, coord: Coord) -> Vec<Coord> {
         let deltas: [(i16, i16); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
         deltas.iter()
