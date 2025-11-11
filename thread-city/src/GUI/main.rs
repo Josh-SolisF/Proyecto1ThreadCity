@@ -69,8 +69,8 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     let h_px = alloc.height() as f64;
 //Dimensiones del mundo (en celdas).
     let (w_cells, h_cells) = (hooks.world_size)();
-    let w_cells = w_cells.max(1) as f64;
-    let h_cells = h_cells.max(1) as f64;
+    let w_cells = w_cells.max(1) ;
+    let h_cells = h_cells.max(1) ;
 //tamaño de celda: intenta que todas las celdas quepan y sean cuadradas.
     let cell_w = (w_px / w_cells).floor();
     let cell_h = (h_px / h_cells).floor();
@@ -283,21 +283,6 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
             }
         }))
     };
-
-            // Opción B (si aún no tienes occupied_coords y necesitas mut):
-            // {
-            //     let mut sb = sim.borrow_mut(); // cuidado: mut borrow
-            //     let coords: Vec<Coord> = sb.traffic.vehicles
-            //         .values()
-            //         .map(|v| v.current())
-            //         .collect();
-            //     drop(sb); // libera borrow antes de tocar 'occ'
-            //     for c in coords {
-            //         occ.insert((c.x, c.y));
-            //     }
-            // }
-
-
 
     UiHooks {
         world_size,
