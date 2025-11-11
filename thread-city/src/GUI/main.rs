@@ -19,8 +19,9 @@ use crate::cityblock::road::RoadBlock;
 use crate::cityblock::shopblock::shop::Shop;
 use crate::cityblock::shopblock::ShopBlock;
 use crate::cityblock::water::WaterBlock;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use gtk::cairo::Operator;
+use crate::city::simulation_controller::SimulationController;
 
 //  UI Hooks: cómo la GUI consulta
 #[derive(Clone)]
@@ -206,64 +207,88 @@ fn main() {
 
 
 pub(crate) fn make_hooks_from_world() -> UiHooks {
-    use std::collections::{HashMap, HashSet};
-    use std::cell::RefCell;
-    use std::rc::Rc;
 
 
-    use crate::cityblock::block_type::BlockType;
-    use crate::cityblock::coord::Coord;
-    use crate::cityblock::nuclearplant::plant_status::PlantStatus;
+    // 1) Controlador de simulación (map, tráfico, plantas, etc.)
+    let sim: Rc<RefCell<SimulationController>> =
+        Rc::new(RefCell::new(SimulationController::new()));
 
+    // 2) Ocupación visible para la GUI (se actualiza en cada tick)
+    let occupancy = Rc::new(RefCell::new(HashSet::<(i16, i16)>::new()));
 
-    // Hay que reemplazar con el mapa de verdad
-
-
-    let map: Rc<RefCell<Map>> = Rc::new(RefCell::new(Map::map_25x25_with_all_blocks()));
-    let occupancy = Rc::new(RefCell::new(HashSet::<(i16,i16)>::new())); // usa Coord si implementa Hash/Eq
-
+    // 3) Tamaño del mundo desde el mapa del SimulationController
     let world_size = {
-        let map = Rc::clone(&map);
+        let sim = Rc::clone(&sim);
         Rc::new(move || -> (i16, i16) {
-            let m = map.borrow();
+            let m = sim.borrow().map.borrow();
             (m.width_cells(), m.height_cells())
         })
     };
 
+    // 4) Tipo de bloque en coord
     let block_type_at = {
-        let map = Rc::clone(&map);
+        let sim = Rc::clone(&sim);
         Rc::new(move |coord: Coord| -> Option<BlockType> {
-            map.borrow().block_type_at(coord)
+            sim.borrow().map.borrow().block_type_at(coord)
         })
     };
 
+    // 5) Ocupado (lo consulta del HashSet que llenamos en cada tick)
     let is_occupied = {
         let occupancy = Rc::clone(&occupancy);
         Rc::new(move |coord: Coord| -> bool {
-            // Se usa la tupla para que sea más sencillo, pero si no también podemos usar el hashmap:
             occupancy.borrow().contains(&(coord.x, coord.y))
         })
     };
 
+    // 6) Estado de planta nuclear (borrow_mut efímero sobre el Map)
     let plant_status_at = {
-        let map = Rc::clone(&map);
+        let sim = Rc::clone(&sim);
         Rc::new(RefCell::new(move |coord: Coord| -> Option<PlantStatus> {
-
-            map.borrow_mut().try_plant_status_at(coord)
+            sim.borrow().map.borrow_mut().try_plant_status_at(coord)
         }))
     };
 
+    // 7) Tick: avanza 1 frame y reconstruye la ocupación desde TrafficHandler::occupied_coords()
     let tick = {
-        let map = Rc::clone(&map);
+        let sim = Rc::clone(&sim);
         let occupancy = Rc::clone(&occupancy);
+
         Rc::new(RefCell::new(move || {
-            // Aquí iría toda la logica de la ciudad, basicametne cada tick
+            // Avanza simulación (esto mueve vehículos y hace progresar plantas)
+            {
+                let mut sb = sim.borrow_mut();
+                sb.advance_time(1);
+            } // <- suelta el borrow_mut del sim antes de leer posiciones
+
+            // Lee posiciones actuales de vehículos (no-mutable) y actualiza ocupación
+            let coords = {
+                let sb = sim.borrow();                    // borrow inmutable del sim
+                sb.traffic.occupied_coords()              // Vec<Coord>
+            };
+
             let mut occ = occupancy.borrow_mut();
             occ.clear();
-            // Marca, (0,0) como ocupado (usa tu handler real)
-            occ.insert((0,0));
+            for c in coords {
+                occ.insert((c.x, c.y));
+            }
+
+
+            // Opción B (si aún no tienes occupied_coords y necesitas mut):
+            // {
+            //     let mut sb = sim.borrow_mut(); // cuidado: mut borrow
+            //     let coords: Vec<Coord> = sb.traffic.vehicles
+            //         .values()
+            //         .map(|v| v.current())
+            //         .collect();
+            //     drop(sb); // libera borrow antes de tocar 'occ'
+            //     for c in coords {
+            //         occ.insert((c.x, c.y));
+            //     }
+            // }
         }))
     };
+
 
     UiHooks {
         world_size,

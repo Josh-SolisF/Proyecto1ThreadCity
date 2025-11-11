@@ -79,6 +79,10 @@ impl TrafficHandler {
         vec.choose(&mut rand::rng()).cloned().unwrap()
     }
 
+    pub fn occupied_coords(&self) -> Vec<Coord> {
+        self.vehicles.values().map(|v| v.current()).collect()
+    }
+
     pub fn advance_time(&mut self) {
         //  Avanza en la carretera u prepara los puentes
         let mut planned_for_bridge: HashMap<Coord, Vec<ThreadId>> = HashMap::new();

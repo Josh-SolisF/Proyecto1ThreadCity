@@ -3,7 +3,7 @@ use crate::cityblock::map::Map;
 
 pub mod supply_kind;
 pub mod traffic_handler;
-mod simulation_controller;
+pub mod simulation_controller;
 
 pub struct ThreadCity {
     pub map: Map,
