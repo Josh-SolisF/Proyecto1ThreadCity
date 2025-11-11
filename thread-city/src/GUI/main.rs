@@ -124,15 +124,15 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
             cr.fill().unwrap();
 
             // Borde por estado de planta (si aplica)
-            if let Some(mut get_ps) = Some(hooks.plant_status_at.clone()) {
-                if let Some(ps) = (get_ps.borrow_mut())(coord) {
+
+            if let Some(ps) = (plant_status)(coord) {
                     let (br, bg, bb) = border_for_plant_status(ps);
                     cr.set_source_rgb(br, bg, bb);
                     cr.set_line_width(3.0);
                     cr.rectangle(x_px + 1.0, y_px + 1.0, cell - 3.0, cell - 3.0);
                     cr.stroke().unwrap();
                 }
-            }
+
 
             // Overlay si está ocupado: círculo rojo
             if (hooks.is_occupied)(coord) {
