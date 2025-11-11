@@ -69,8 +69,8 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     let h_px = alloc.height() as f64;
 //Dimensiones del mundo (en celdas).
     let (w_cells, h_cells) = (hooks.world_size)();
-    let w_cells = w_cells.max(1) ;
-    let h_cells = h_cells.max(1) ;
+    let w_cells = w_cells.max(1) as f64;
+    let h_cells = h_cells.max(1) as f64;
 //tamaño de celda: intenta que todas las celdas quepan y sean cuadradas.
     let cell_w = (w_px / w_cells).floor();
     let cell_h = (h_px / h_cells).floor();
