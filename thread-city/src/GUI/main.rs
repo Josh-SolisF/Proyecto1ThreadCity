@@ -20,8 +20,9 @@ use crate::cityblock::shopblock::shop::Shop;
 use crate::cityblock::shopblock::ShopBlock;
 use crate::cityblock::water::WaterBlock;
 use std::collections::HashMap;
+use gtk::cairo::Operator;
 
-//  UI Hooks: cómo la GUI consulta 
+//  UI Hooks: cómo la GUI consulta
 #[derive(Clone)]
 pub struct UiHooks {
     world_size: Rc<dyn Fn() -> (i16, i16)>,
@@ -90,6 +91,11 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
             let x_px = ox + (x as f64) * cell;
             let y_px = oy + (y as f64) * cell;
 
+
+            cr.save().unwrap();                 // <<--- Aísla estado
+            cr.set_operator(Operator::Over);    // <<--- Restaura operador “normal”
+            cr.set_line_width(1.0);             // <<--- Evita que quede grueso de otra celda
+
             // // Si no hay bloque, usamos un gris medio
             if let Some(bt) = (hooks.block_type_at)(coord) {
 
@@ -135,6 +141,9 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
                 cr.arc(cx, cy, r, 0.0, std::f64::consts::TAU);
                 cr.fill().unwrap();
             }
+
+            cr.restore().unwrap();              // <<--- Devuelve el contexto limpio
+
         }
 
         if !counts.is_empty() {
