@@ -38,7 +38,7 @@ fn color_for_block(bt: &BlockType) -> (f64, f64, f64) {
     match bt {
         Road          => (0.00, 0.00, 0.00), // negro
         Bridge        => (0.60, 0.80, 1.00), // (azulado) para distinguir de carretera
-        Shop          => (1.00, 0.55, 0.00), // naranja (tipo #FF8C00)
+        Shops          => (1.00, 0.55, 0.00), // naranja (tipo #FF8C00)
         Dock          => (0.59, 0.29, 0.00), // marrón (tipo #964B00)
         Water         => (0.00, 0.50, 1.00), // azul (tipo #0080FF)
         NuclearPlant  => (0.00, 0.70, 0.20), // verde 
@@ -83,6 +83,8 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     cr.paint().unwrap();
 
     let mut counts: HashMap<&'static str, usize> = HashMap::new();
+
+    let mut plant_status = hooks.plant_status_at.borrow_mut();
 
     for y in 0..(h_cells as i16) {
         for x in 0..(w_cells as i16) {
@@ -145,6 +147,7 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
             cr.restore().unwrap();              // <<--- Devuelve el contexto limpio
 
         }
+    }
 
         if !counts.is_empty() {
             eprintln!("[draw] tipos por frame: {:?}", counts);
@@ -152,7 +155,7 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
         }
 
 }
-}
+
 
 pub(crate) fn build_ui(app: &Application, hooks: UiHooks) {
     let win = ApplicationWindow::builder()
