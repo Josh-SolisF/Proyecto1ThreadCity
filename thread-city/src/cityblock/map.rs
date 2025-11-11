@@ -119,7 +119,7 @@ impl Map {
         if !self.in_bounds(coord) { return None; }
         // Obtenemos el bloque de forma mutable para poder hacer as_any().downcast_mut().
         let blk = self.get_block_at(coord)?;
-        if blk.get_type() != &BlockType::NuclearPlant {
+        if blk.get_type() != &NuclearPlant {
             return None;
         }
         // downcast al bloque concreto

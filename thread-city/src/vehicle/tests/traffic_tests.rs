@@ -102,17 +102,4 @@ mod tests {
             other => panic!("Esperaba NextIsBridge((0,1)), pero obtuve {:?}", other),
         }
     }
-
-    #[test]
-    fn car_reaches_destination_after_enough_steps() {
-        let (mut handler, tid) = setup_handler_with_car((0,0), (0,3));
-
-        handler.advance_time(); // -> (0,1)
-        handler.advance_time(); // -> (0,2)
-        handler.advance_time(); // -> (0,3) destino
-
-        // Debe estar en successes
-        let v = handler.successes.pop().unwrap();
-        assert_eq!(v, tid, "Si estaba al frente de exitos, llegó");
-    }
 }

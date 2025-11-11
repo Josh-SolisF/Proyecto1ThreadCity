@@ -1,3 +1,5 @@
+use std::thread::sleep;
+use std::time::Duration;
 use gtk::Application;
 use gtk::prelude::{ApplicationExt, ApplicationExtManual};
 

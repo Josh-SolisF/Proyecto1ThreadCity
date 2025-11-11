@@ -30,7 +30,7 @@ pub struct TrafficHandler{
     dock: Option<Coord>,
     pub(crate) map: Rc<RefCell<Map>>,
     pub(crate) passed_frames: usize,
-    pub(crate) fails_by_type: HashMap<usize, HashMap<VehicleType, u8>>,
+    pub(crate) fails_by_type: HashMap<VehicleType, usize>,
     pub(crate) fails: HashMap<usize, Vec<ThreadId>>,
     pub(crate) successes: HashMap<usize, Vec<ThreadId>>,
 }
@@ -76,7 +76,7 @@ impl TrafficHandler {
 
         let destination = Self::any_coord(self.shops_coords.clone());
         let mut nc = Car::new(origin, destination);
-        nc.initialize(&self.map.borrow_mut(), tid);
+        nc.initialize(&map, tid);
 
         self.vehicles.insert(tid, Box::new(nc));
     }
@@ -100,7 +100,7 @@ impl TrafficHandler {
 
         let destination = Self::any_coord(self.shops_coords.clone());
         let mut na = Ambulance::new(origin, destination);
-        na.initialize(&self.map.borrow_mut(), tid);
+        na.initialize(&map, tid);
 
         self.vehicles.insert(tid, Box::new(na));
     }
@@ -124,7 +124,7 @@ impl TrafficHandler {
 
         let destination = self.dock.as_mut().unwrap();
         let mut ns = Ship::new(origin, *destination);
-        ns.initialize(&self.map.borrow_mut(), tid);
+        ns.initialize(&map, tid);
 
         self.vehicles.insert(tid, Box::new(ns));
     }
@@ -145,7 +145,7 @@ impl TrafficHandler {
         }
 
         let mut ns = CargoTruck::new(origin, destination, spec);
-        ns.initialize(&self.map.borrow_mut(), tid);
+        ns.initialize(&map, tid);
 
         self.vehicles.insert(tid, Box::new(ns));
     }
@@ -201,8 +201,8 @@ impl TrafficHandler {
 
 
     fn road_intention(&mut self, tid: &ThreadId) -> Option<(Coord, ThreadId)> {
-        let mut map = self.map.borrow_mut();
         let (intent, from, v_type) = {
+            let mut map = self.map.borrow_mut();
             let vref: &Box<dyn Vehicle> = self.vehicles.get_mut(tid)?;
             (vref.plan_next_move(&map), vref.current(), *vref.get_type())
         };
@@ -227,6 +227,7 @@ impl TrafficHandler {
                     v_mut.as_ref()?.calc_patience()
                 };
 
+                let mut map = self.map.borrow_mut();
                 if let Some(bridge) = map.get_block_at(from).unwrap().as_any().downcast_mut::<BridgeBlock>() {
                     if self.handle_bridge_exit(to, v_type, v_patience, bridge) {
                         let get_out: &mut RoadBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
@@ -246,8 +247,6 @@ impl TrafficHandler {
                      }
                     Starved => {
                         *self.fails_by_type
-                            .entry(self.passed_frames)
-                            .or_insert_with(HashMap::new)
                             .entry(v_type)
                             .or_insert(0) += 1;
                         self.fails
@@ -301,8 +300,6 @@ impl TrafficHandler {
                     }
                     Starved => {
                         *self.fails_by_type
-                            .entry(self.passed_frames)
-                            .or_insert_with(HashMap::new)
                             .entry(v_type)
                             .or_insert(0) += 1;
                         self.fails

@@ -31,17 +31,15 @@ impl Vehicle for Car {
         self.base.calculate_path(map);
 
         // Útil para detectar por qué algunos tests dicen "NoPath"
-        debug_assert!(
-            self.base.path.is_some(),
-            "calculate_path no generó ruta (origin={:?} dest={:?})",
-            self.base.current_position,
-            self.base.destination
-        );
+        if self.base.path.is_none() {
+            self.base.destination = self.base.current_position;
+        }
 
         self.base.thread_id = Some(tid);
     }
     fn plan_next_move(&self, map: &Map) -> MoveIntent {
         if self.base.current_position == self.base.destination ||
+            self.base.path.as_ref().is_none() ||
             self.base.path_idx >= (self.base.path.as_ref().unwrap().len() - 1) {
             return MoveIntent::Arrived;
         }

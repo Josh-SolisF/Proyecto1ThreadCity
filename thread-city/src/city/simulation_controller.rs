@@ -112,8 +112,8 @@ impl SimulationController {
         if let Some(fails) = self.traffic.fails.get(&frame) {
             println!("Fails in frame {:?}: {:?} ", frame, fails);
         }
-        if let Some(fails) = self.traffic.fails_by_type.get(&frame) {
-            println!("Fails by type in frame {:?}: {:?} ", frame, fails);
+        if let Some(fails) = self.traffic.fails_by_type.keys().next() {
+            println!("Fails by type {:?}: {:?} ", fails, self.traffic.fails_by_type.get(fails).unwrap());
         }
         if let Some(successes) = self.traffic.successes.get(&frame) {
             println!("Successes in frame {:?}: {:?} ", frame, successes);

@@ -68,7 +68,7 @@ mod create_vehicle {
     #[test]
     fn test_create_ship() {
         let tid: ThreadId = 0;
-        let mut boat = Ship::new(Coord::new(0, 0), Coord::new(2, 0), 1);
+        let mut boat = Ship::new(Coord::new(0, 0), Coord::new(2, 0));
 
         let mut custom = Vec::new();
         custom.push(basic_river());
@@ -85,8 +85,7 @@ mod create_vehicle {
     fn test_create_truck() {
         let tid: ThreadId = 0;
         let supply = SupplySpec { kind: NuclearMaterial, dead_line: 20, time_passed_ms: 0};
-        let mut brrrum = CargoTruck::new(Coord::new(0, 0), Coord::new(2, 0),
-                                         1, supply);
+        let mut brrrum = CargoTruck::new(Coord::new(0, 0), Coord::new(2, 0), supply);
 
         let mut custom = Vec::new();
         custom.push(basic_road());

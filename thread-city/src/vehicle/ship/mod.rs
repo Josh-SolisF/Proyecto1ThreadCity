@@ -35,6 +35,7 @@ impl Vehicle for Ship {
 
     fn plan_next_move(&self, map: &Map) -> MoveIntent {
         if self.base.current_position == self.base.destination ||
+            self.base.path.as_ref().is_none() ||
             self.base.path_idx >= (self.base.path.as_ref().unwrap().len() - 1) {
             return MoveIntent::Arrived;
         }
@@ -48,7 +49,7 @@ impl Vehicle for Ship {
             self.base.path_idx += 1;
             return Maxed {moved: true};
         }
-        self.base.patience -= rand::rng().random_range(1..4);
+        self.base.patience = self.base.patience.saturating_sub(rand::rng().random_range(1..4));
         self.calc_patience()
     }
 

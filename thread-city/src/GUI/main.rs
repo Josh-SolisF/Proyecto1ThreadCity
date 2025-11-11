@@ -20,8 +20,13 @@ use crate::cityblock::shopblock::shop::Shop;
 use crate::cityblock::shopblock::ShopBlock;
 use crate::cityblock::water::WaterBlock;
 use std::collections::{HashMap, HashSet};
+use std::thread::sleep;
+use std::time::Duration;
 use gtk::cairo::Operator;
 use crate::city::simulation_controller::SimulationController;
+use crate::cityblock::block_type::BlockType::NuclearPlant;
+use crate::cityblock::nuclearplant::plant_status::PlantStatus::Boom;
+use crate::vehicle::vehicle_type::VehicleType;
 
 //  UI Hooks: cómo la GUI consulta
 #[derive(Clone)]
@@ -31,6 +36,8 @@ pub struct UiHooks {
     is_occupied: Rc<dyn Fn(Coord) -> bool>,
     plant_status_at: Rc<RefCell<dyn FnMut(Coord) -> Option<PlantStatus>>>, 
     tick: Rc<RefCell<dyn FnMut()>>,
+    vehicles_at: Rc<dyn Fn() -> Vec<(usize, Coord, VehicleType)>>, // 👈 nuevo hook
+
 }
 
 
@@ -43,7 +50,15 @@ fn color_for_block(bt: &BlockType) -> (f64, f64, f64) {
         Dock          => (0.59, 0.29, 0.00), // marrón (tipo #964B00)
         Water         => (0.00, 0.50, 1.00), // azul (tipo #0080FF)
         NuclearPlant  => (0.00, 0.70, 0.20), // verde 
-        _             => (0.85, 0.85, 0.85), // por defecto gris claro
+    }
+}
+fn color_for_vehicle(vtype: &VehicleType) -> (f64, f64, f64) {
+    use VehicleType::*;
+    match vtype {
+        CarE => (0.95, 0.20, 0.20),   // rojo
+        AmbulanceE => (1.00, 0.75, 0.00),   // amarillo
+        TruckE => (0.20, 0.60, 1.00), // azul
+        ShipE => (0.00, 0.85, 0.30),  // verde
     }
 }
 
@@ -104,8 +119,12 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
 
             // Relleno según tipo (o gris si None)
             if let Some(bt) = (hooks.block_type_at)(coord) {
-                let (r, g, b) = color_for_block(&bt);
-                cr.set_source_rgb(r, g, b);
+                if bt == NuclearPlant &&  plant_status(coord) == Option::from(Boom) {
+                    cr.set_source_rgb(0.25, 0.25, 0.25);
+                } else {
+                    let (r, g, b) = color_for_block(&bt);
+                    cr.set_source_rgb(r, g, b);
+                }
             } else {
                 cr.set_source_rgb(0.25, 0.25, 0.25);
             }
@@ -136,6 +155,61 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
             cr.restore().unwrap();
         }
     }
+    let vehicles = (hooks.vehicles_at)();
+
+    // Agrupar por coordenada (para saber cuántos hay por celda)
+    use std::collections::HashMap;
+    let mut grouped: HashMap<(i16, i16), Vec<(usize, VehicleType)>> = HashMap::new();
+
+    for (tid, coord, vtype) in vehicles {
+        grouped
+            .entry((coord.x, coord.y))
+            .or_default()
+            .push((tid, vtype));
+    }
+
+    // Dibujo de cada grupo de vehículos
+    for ((x, y), list) in grouped {
+        let x_px = ox + (x as f64) * cell;
+        let y_px = oy + (y as f64) * cell;
+
+        // desplazamientos relativos (por cuadrante)
+        let offsets = [
+            (-0.25, -0.25), // 0: superior izquierda
+            (0.25, -0.25),  // 1: superior derecha
+            (-0.25, 0.25),  // 2: inferior izquierda
+            (0.25, 0.25),   // 3: inferior derecha
+        ];
+
+        for (i, (tid, vtype)) in list.iter().enumerate() {
+            if i >= 4 {
+                break; // máximo 4 por celda
+            }
+
+            let (dx, dy) = offsets[i];
+            let (r, g, b) = color_for_vehicle(vtype);
+            cr.set_source_rgb(r, g, b);
+
+            // posición del vehículo dentro de la celda
+            let cx = x_px + cell * (0.5 + dx * 0.5);
+            let cy = y_px + cell * (0.5 + dy * 0.5);
+            let radius = (cell * 0.15).max(2.0);
+
+            cr.arc(cx, cy, radius, 0.0, std::f64::consts::TAU);
+            cr.fill().unwrap();
+
+            // tid en el centro del círculo
+            cr.set_source_rgb(1.0, 1.0, 1.0);
+            cr.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Bold);
+            cr.set_font_size((cell * 0.25).clamp(6.0, 12.0));
+
+            let text = tid.to_string();
+            let extents = cr.text_extents(&text).unwrap();
+            cr.move_to(cx - extents.width() / 2.0, cy + extents.height() / 2.0);
+            cr.show_text(&text).unwrap();
+        }
+    }
+
 }
 
 
@@ -166,7 +240,7 @@ pub(crate) fn build_ui(app: &Application, hooks: UiHooks) {
     // Timer de frames (33ms ~ 30 FPS). En cada tick, avanza 1 frame y repinta.
     let area_weak = area.downgrade();
     let tick_cb = hooks.tick.clone();
-    timeout_add_local(std::time::Duration::from_millis(33), move || {
+    timeout_add_local(std::time::Duration::from_millis(1000), move || {
         (tick_cb.borrow_mut())(); // avanza tu simulación 1 frame
         if let Some(area) = area_weak.upgrade() {
             area.queue_draw();
@@ -222,6 +296,17 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
         })
     };
 
+    let vehicles_at = {
+        let sim = Rc::clone(&sim);
+        Rc::new(move || -> Vec<(usize, Coord, VehicleType)> {
+            let sb = sim.borrow();
+            sb.traffic.vehicles
+                .iter()
+                .map(|v| (*v.0 as usize, v.1.base().current_position, *v.1.get_type()))
+                .collect()
+        })
+    };
+
     //Hashmap de ocupado
     let is_occupied = {
         let occupancy = Rc::clone(&occupancy);
@@ -274,5 +359,6 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
         is_occupied,
         plant_status_at,
         tick,
+        vehicles_at
     }
 }

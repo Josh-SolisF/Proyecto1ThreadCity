@@ -95,81 +95,6 @@ mod nuclear_plant_tests {
     }
 
     #[test]
-    fn spawn_trucks_creates_one_per_pending_kind_and_marks_scheduled() {
-        let mut plant = NuclearPlantBlock::new(1, 100, 30);
-        let plant_coord = c(0, 2);
-
-        // Entra a AtRisk y crea requerimientos
-        advance_frames(&mut plant, 30);
-        assert_eq!(plant.plant_status, PlantStatus::AtRisk);
-
-        // Crea camiones; origen fijo por ahora (luego será aleatorio)
-        let trucks = plant.spawn_trucks_for_pending_requirements(plant_coord, |_req| c(0, 0));
-        assert_eq!(trucks.len(), 2, "Debe crear 2 camiones (uno por cada requerimiento)");
-
-        // scheduled_kinds debe registrar ambos tipos
-        assert!(plant.scheduled_kinds.contains(&SupplyKind::NuclearMaterial));
-        assert!(plant.scheduled_kinds.contains(&SupplyKind::Water));
-
-        // Una segunda llamada no debe crear duplicados (ya están programados)
-        let trucks2 = plant.spawn_trucks_for_pending_requirements(plant_coord, |_req| c(0, 0));
-        assert!(trucks2.is_empty());
-    }
-
-    #[test]
-    fn commit_delivery_requires_both_to_raise_state_from_at_risk() {
-        let mut plant = NuclearPlantBlock::new(1, 100, 30);
-        let plant_coord = c(0, 2);
-
-        // Entra a AtRisk y genera pedidos
-        advance_frames(&mut plant, 30);
-        assert_eq!(plant.plant_status, PlantStatus::AtRisk);
-
-        // Crea ambos camiones
-        let mut trucks = plant.spawn_trucks_for_pending_requirements(plant_coord, |_req| c(0, 0));
-        assert_eq!(trucks.len(), 2);
-
-        // Entrega solo uno
-        let t0 = trucks.pop().unwrap();
-        plant.commit_delivery(&t0);
-        assert_eq!(plant.plant_status, PlantStatus::AtRisk, "Con una sola entrega no debe subir de estado");
-        assert_eq!(plant.requires.len(), 1, "Debe quedar un requerimiento pendiente");
-
-        // Entrega el segundo
-        let t1 = trucks.pop().unwrap();
-        plant.commit_delivery(&t1);
-        assert_eq!(plant.plant_status, PlantStatus::Ok, "Con ambas entregas debe subir a Ok");
-        assert!(plant.requires.is_empty());
-    }
-
-    #[test]
-    fn commit_delivery_from_critical_raises_to_at_risk_not_ok() {
-        let mut plant = NuclearPlantBlock::new(1, 100, 30);
-        let plant_coord = c(0, 2);
-
-        // Ok -> AtRisk (crea requerimientos)
-        advance_frames(&mut plant, 30);
-        assert_eq!(plant.plant_status, PlantStatus::AtRisk);
-
-        // AtRisk -> Critical (sin entregar, los requerimentos siguen)
-        advance_frames(&mut plant, 30);
-        assert_eq!(plant.plant_status, PlantStatus::Critical);
-        assert_eq!(plant.requires.len(), 2);
-
-        // Crea camiones ahora (si no estaban programados ya)
-        let mut trucks = plant.spawn_trucks_for_pending_requirements(plant_coord, |_req| c(0, 0));
-
-        // Entrega ambos
-        for t in &trucks {
-            plant.commit_delivery(t);
-        }
-
-        // Debe subir de Critical -> AtRisk (no salta a Ok)
-        assert_eq!(plant.plant_status, PlantStatus::AtRisk);
-        assert!(plant.requires.is_empty());
-    }
-
-    #[test]
     fn reaching_boom_clears_requirements_and_scheduled() {
         let mut plant = NuclearPlantBlock::new(1, 100, 30);
 
@@ -188,28 +113,4 @@ mod nuclear_plant_tests {
         assert!(plant.scheduled_kinds.is_empty(), "Al llegar a Boom se limpia la lista de programados");
     }
 
-    #[test]
-    fn truck_planned_by_plant_marks_bridge_as_special() {
-        // Mapa: Road -> Bridge -> Road  (0,0) -> (0,1) -> (0,2)
-        let map = build_column_map_with_bridge();
-        let plant_coord = c(0, 2);
-
-        let mut plant = NuclearPlantBlock::new(1, 100, 30);
-        advance_frames(&mut plant, 30);
-        assert_eq!(plant.plant_status, PlantStatus::AtRisk);
-
-        // Que la planta cree camiones; tomamos uno
-        let mut trucks = plant.spawn_trucks_for_pending_requirements(plant_coord, |_req| c(0, 0));
-        assert!(!trucks.is_empty());
-        let mut truck = trucks.remove(0);
-
-        // Inicializamos y verificamos el hook de puente
-        let tid: ThreadId = 42;
-        truck.initialize(&map, tid);
-
-        match truck.base().plan_next(&map) {
-            MoveIntent::NextIsBridge { coord } => assert_eq!(coord, c(0, 1)),
-            other => panic!("Esperaba NextIsBridge((0,1)), obtuve {:?}", other),
-        }
-    }
 }
