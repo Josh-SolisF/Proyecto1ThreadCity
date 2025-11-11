@@ -9,3 +9,4 @@ rand = "0.10.0-rc.0"
 
 gtk = { package = "gtk4", version = ">=0.7", features = ["v4_10"] }
 glib = "0.17"
+counts = "1.0.6"

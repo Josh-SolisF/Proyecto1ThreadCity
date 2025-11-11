@@ -1,4 +1,3 @@
-// src/main.rs (o src/bin/gtk_view.rs)
 use std::cell::RefCell;
 use std::rc::Rc;
 use glib::Continue;
@@ -20,6 +19,7 @@ use crate::cityblock::road::RoadBlock;
 use crate::cityblock::shopblock::shop::Shop;
 use crate::cityblock::shopblock::ShopBlock;
 use crate::cityblock::water::WaterBlock;
+use std::collections::HashMap;
 
 //  UI Hooks: cómo la GUI consulta 
 #[derive(Clone)]
@@ -81,6 +81,8 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     cr.set_source_rgb(0.12, 0.12, 0.12);
     cr.paint().unwrap();
 
+    let mut counts: HashMap<&'static str, usize> = HashMap::new();
+
     for y in 0..(h_cells as i16) {
         for x in 0..(w_cells as i16) {
             let coord = Coord::new(x, y);
@@ -90,6 +92,20 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
 
             // // Si no hay bloque, usamos un gris medio
             if let Some(bt) = (hooks.block_type_at)(coord) {
+
+
+                // =========== DEPURACIÓN: contabiliza el tipo ===========
+                let name = match bt {
+                    BlockType::Road         => "Road",
+                    BlockType::Bridge       => "Bridge",
+                    BlockType::Shops         => "Shop",
+                    BlockType::Dock         => "Dock",
+                    BlockType::Water        => "Water",
+                    BlockType::NuclearPlant => "NuclearPlant",
+                    _                       => "_other",
+                };
+                *counts.entry(name).or_insert(0) += 1;
+
                 let (r, g, b) = color_for_block(&bt);
                 cr.set_source_rgb(r, g, b);
             } else {
@@ -120,7 +136,13 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
                 cr.fill().unwrap();
             }
         }
-    }
+
+        if !counts.is_empty() {
+            eprintln!("[draw] tipos por frame: {:?}", counts);
+
+        }
+
+}
 }
 
 pub(crate) fn build_ui(app: &Application, hooks: UiHooks) {
