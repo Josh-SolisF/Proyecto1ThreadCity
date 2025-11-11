@@ -1,4 +1,4 @@
-..use std::os::raw::c_void;
+use std::os::raw::c_void;
 use libc::pthread_t;
 pub use crate::mythread::mythreadattr::MyThreadAttr;
 use crate::mythread::thread_state::ThreadState;
