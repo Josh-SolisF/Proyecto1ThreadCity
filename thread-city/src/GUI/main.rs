@@ -132,7 +132,7 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
                     cr.rectangle(x_px + 1.0, y_px + 1.0, cell - 3.0, cell - 3.0);
                     cr.stroke().unwrap();
                 }
-
+//
 
             // Overlay si está ocupado: círculo rojo
             if (hooks.is_occupied)(coord) {
