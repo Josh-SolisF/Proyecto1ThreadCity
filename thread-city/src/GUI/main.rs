@@ -59,55 +59,58 @@ fn border_for_plant_status(ps: PlantStatus) -> (f64, f64, f64) {
     }
 }
 
+
 fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
-
-    // Geometría del área en píxeles lógicos (GTK4 usa logical coords).
-    // allocation() da el rectángulo asignado al widget.
-
+    // Geometría del área (píxeles lógicos)
     let alloc = area.allocation();
     let w_px = alloc.width() as f64;
     let h_px = alloc.height() as f64;
-//Dimensiones del mundo (en celdas).
-    let (w_cells, h_cells) = (hooks.world_size)();
-    let w_cells = w_cells.max(1) as f64;
-    let h_cells = h_cells.max(1) as f64;
-//tamaño de celda: intenta que todas las celdas quepan y sean cuadradas.
-    let cell_w = (w_px / w_cells).floor();
-    let cell_h = (h_px / h_cells).floor();
+
+    // Dimensiones del mundo (en celdas) — usar enteros para iterar SIN cast a f64
+    let (w_cells_i16, h_cells_i16) = (hooks.world_size)();
+    let w = (w_cells_i16.max(0) as usize).max(1);
+    let h = (h_cells_i16.max(0) as usize).max(1);
+
+    // Tamaño de celda cuadrada en píxeles
+    let cell_w = (w_px / (w as f64)).floor();
+    let cell_h = (h_px / (h as f64)).floor();
     let cell = cell_w.min(cell_h).max(1.0);
-    //Offsets para centrar el grid dentro del área
-    let ox = (w_px - (cell * w_cells)).max(0.0) / 2.0;
-    let oy = (h_px - (cell * h_cells)).max(0.0) / 2.0;
+
+    // Offsets para centrar el grid
+    let ox = (w_px - (cell * (w as f64))).max(0.0) / 2.0;
+    let oy = (h_px - (cell * (h as f64))).max(0.0) / 2.0;
 
     // Fondo
     cr.set_source_rgb(0.12, 0.12, 0.12);
     cr.paint().unwrap();
 
+    // Depuración: contador por tipo
     let mut counts: HashMap<&'static str, usize> = HashMap::new();
 
+    // Único borrow del closure mutante (estado de planta) para todo el frame
     let mut plant_status = hooks.plant_status_at.borrow_mut();
 
-    for y in 0..(h_cells as i16) {
-        for x in 0..(w_cells as i16) {
-            let coord = Coord::new(x, y);
-            // ordenadas en píxeles para la esquina sup-izq de la celda.
+    // BUCLES EXACTOS (0..h, 0..w)
+    for y in 0..h {
+        for x in 0..w {
+            let coord = Coord::new(x as i16, y as i16);
+
+            // Esquina superior izquierda de la celda en píxeles
             let x_px = ox + (x as f64) * cell;
             let y_px = oy + (y as f64) * cell;
 
+            cr.save().unwrap();              // Aísla estado de Cairo
+            cr.set_operator(Operator::Over); // Operador normal
+            cr.set_line_width(1.0);          // No heredar grosor
 
-            cr.save().unwrap();                 // <<--- Aísla estado
-            cr.set_operator(Operator::Over);    // <<--- Restaura operador “normal”
-            cr.set_line_width(1.0);             // <<--- Evita que quede grueso de otra celda
-
-            // // Si no hay bloque, usamos un gris medio
+            // Color de relleno según el tipo de bloque, o gris si None
             if let Some(bt) = (hooks.block_type_at)(coord) {
-
-
-                // =========== DEPURACIÓN: contabiliza el tipo ===========
+                // Depuración: contabiliza
                 let name = match bt {
                     BlockType::Road         => "Road",
                     BlockType::Bridge       => "Bridge",
-                    BlockType::Shops         => "Shop",
+                    BlockType::Shops        => "Shops",       // <-- Si tu enum es Shops
+                    // BlockType::Shop      => "Shop",        // <-- Usa esto si tu enum es Shop
                     BlockType::Dock         => "Dock",
                     BlockType::Water        => "Water",
                     BlockType::NuclearPlant => "NuclearPlant",
@@ -118,44 +121,46 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
                 let (r, g, b) = color_for_block(&bt);
                 cr.set_source_rgb(r, g, b);
             } else {
+                // Sin bloque: gris
                 cr.set_source_rgb(0.25, 0.25, 0.25);
             }
-            //quede una "rejilla" sutil entre celdas y no se vean pegadas
+
+            // Relleno de la celda (dejando 1px de rejilla)
             cr.rectangle(x_px, y_px, cell - 1.0, cell - 1.0);
             cr.fill().unwrap();
 
             // Borde por estado de planta (si aplica)
-
             if let Some(ps) = (plant_status)(coord) {
-                    let (br, bg, bb) = border_for_plant_status(ps);
-                    cr.set_source_rgb(br, bg, bb);
-                    cr.set_line_width(3.0);
-                    cr.rectangle(x_px + 1.0, y_px + 1.0, cell - 3.0, cell - 3.0);
-                    cr.stroke().unwrap();
-                }
-//
+                let (br, bg, bb) = border_for_plant_status(ps);
+                cr.set_source_rgb(br, bg, bb);
+                cr.set_line_width((cell * 0.12).clamp(1.0, 3.0));
+                cr.rectangle(x_px + 1.0, y_px + 1.0, cell - 3.0, cell - 3.0);
+                cr.stroke().unwrap();
+            }
 
-            // Overlay si está ocupado: círculo rojo
+            // Overlay: círculo rojo si está ocupado
             if (hooks.is_occupied)(coord) {
                 cr.set_source_rgb(0.95, 0.20, 0.20);
                 let cx = x_px + cell * 0.5;
                 let cy = y_px + cell * 0.5;
-                let r = (cell * 0.25).max(3.0);
+                let r  = (cell * 0.25).max(3.0);
                 cr.arc(cx, cy, r, 0.0, std::f64::consts::TAU);
                 cr.fill().unwrap();
             }
 
-            cr.restore().unwrap();              // <<--- Devuelve el contexto limpio
-
+            cr.restore().unwrap();           // Estado limpio para próxima celda
         }
     }
 
-        if !counts.is_empty() {
-            eprintln!("[draw] tipos por frame: {:?}", counts);
-
-        }
-
+    // Imprime una vez por frame (útil para confirmar conteos)
+    if !counts.is_empty() {
+        eprintln!(
+            "[draw] world {}x{} tipos por frame: {:?}",
+            w, h, counts
+        );
+    }
 }
+
 
 
 pub(crate) fn build_ui(app: &Application, hooks: UiHooks) {
