@@ -22,7 +22,6 @@ pub struct NuclearPlantBlock {
     pub(crate) update_interval_ms: usize,
     pub(crate) requires: Vec<SupplySpec>,
     pub(crate) scheduled_kinds: Vec<SupplyKind>,
-
 }
 
 impl Block for NuclearPlantBlock {
@@ -55,8 +54,8 @@ impl NuclearPlantBlock {
 
     // Avanza el "reloj". Solo decide si hay transición y la aplica.
     // Devuelve siempre None (firma preservada para compatibilidad).
-    pub fn advance_time(&mut self, time_passed: usize) -> Option<SupplySpec> {
-        if self.plant_status == Boom { return None; }
+    pub fn advance_time(&mut self, time_passed: usize) -> PlantStatus {
+        if self.plant_status == Boom { return Boom; }
 
         self.time_passed_ms += time_passed;
 
@@ -67,8 +66,7 @@ impl NuclearPlantBlock {
             let next = self.compute_next_status();
             self.apply_transition(next);
         }
-
-        None
+        self.plant_status
     }
 
     // Pone los 2 requerimientos por defecto al entrar en AtRisk.
@@ -79,60 +77,16 @@ impl NuclearPlantBlock {
         self.requires.push(SupplySpec { kind: SupplyKind::Water,            dead_line: dl, time_passed_ms: 0 });
     }
 
-    // La planta crea camiones para cada requerimiento pendiente sin camión programado.
-    pub fn spawn_trucks_for_pending_requirements<F>(
-        &mut self,
-        plant_coord: Coord,
-        mut pick_origin: F,
-    ) -> Vec<CargoTruck>
-    where
-        F: FnMut(&SupplySpec) -> Coord,
-    {
-        if matches!(self.plant_status, Ok | Boom) {
-            return Vec::new();
-        }
-
-        let mut created = Vec::new();
-
-        for req in self.requires.iter() {
-            if self.is_kind_scheduled(req.kind) {
-                continue;
-            }
-
-            let origin = pick_origin(req);
-            let speed = 1;
-            // Si SupplySpec no es Copy, usa `req.clone()`.
-            let truck = CargoTruck::new(origin, plant_coord, speed, *req);
-
-            // Marca como programado (por tipo) y lo retorna para que tu runtime lo registre.
-            self.scheduled_kinds.push(req.kind);
-            created.push(truck);
-        }
-
-        created
-    }
-
-    pub fn mark_truck_scheduled_for_kind(&mut self, kind: SupplyKind) {
-        if !self.is_kind_scheduled(kind) {
-            self.scheduled_kinds.push(kind);
-        }
-    }
-
     // Llamar cuando un camión llega y entrega.
     // Si cumple todos los pedidos pendientes, la planta sube un nivel (máximo uno).
     pub fn commit_delivery(&mut self, truck: &CargoTruck) {
         let delivered_kind = truck.cargo.kind;
 
-        let before = self.requires.len();
         self.requires.retain(|req| req.kind != delivered_kind);
         self.scheduled_kinds.retain(|k| *k != delivered_kind);
 
-        if before > 0 && self.requires.is_empty() {
-            self.plant_status = match self.plant_status {
-                AtRisk   => Ok,
-                Critical => AtRisk,
-                other    => other, // seguridad
-            };
+        if self.requires.is_empty() {
+            self.plant_status = Ok;
         }
     }
 
@@ -166,37 +120,14 @@ impl NuclearPlantBlock {
                 // kaboom
                 self.requires.clear();
                 self.scheduled_kinds.clear();
-                self.dead_line_policy = 0;
-                self.update_interval_ms = 0;
+                    self.dead_line_policy = 0;
+                    self.update_interval_ms = 0;
             }
             Ok => {
 
             }
         }
     }
-
-    /// ¿Ya hay camión programado para `kind`?
-    fn is_kind_scheduled(&self, kind: SupplyKind) -> bool {
-        self.scheduled_kinds.iter().any(|k| *k == kind)
-    }
 }
-/*
-
-    /// Interno: siguiente estado en la cadena Ok -> AtRisk -> Critical -> Boom
-    fn next_status(&mut self) -> PlantStatus {
-        match self.plant_status {
-            Ok       => AtRisk,
-            AtRisk   => Critical,
-            Critical => {
-                // Llegar a Boom: deja la planta inoperante. Limpia políticas si quieres
-                self.dead_line_policy = 0;
-                self.update_interval_ms = 0;
-                Boom
-            }
-            Boom     => Boom,
-        }
-    }
-*/
-
 
 

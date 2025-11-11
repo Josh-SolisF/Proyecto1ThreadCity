@@ -15,7 +15,7 @@ pub struct CargoTruck {
 }
 
 impl CargoTruck {
-    pub fn new(origin: Coord, destination: Coord, speed: u8, cargo: SupplySpec) -> Self {
+    pub fn new(origin: Coord, destination: Coord, cargo: SupplySpec) -> Self {
         Self {
             cargo,
             base: VehicleBase::new(origin, destination, TruckE, 3),

@@ -13,7 +13,7 @@ pub struct Ship {
 }
 
 impl Ship {
-    pub fn new(origin: Coord, destination: Coord, speed: u8) -> Self {
+    pub fn new(origin: Coord, destination: Coord) -> Self {
         Self {
             base: VehicleBase::new(origin, destination, ShipE, 21),
         }

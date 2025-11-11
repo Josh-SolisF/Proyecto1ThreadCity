@@ -10,10 +10,13 @@ use crate::cityblock::bridge::BridgeBlock;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::map::Map;
 use crate::cityblock::nuclearplant::NuclearPlantBlock;
+use crate::cityblock::nuclearplant::supply_spec::SupplySpec;
 use crate::cityblock::road::RoadBlock;
 use crate::cityblock::water::WaterBlock;
+use crate::vehicle::ambulance::Ambulance;
 use crate::vehicle::car::Car;
 use crate::vehicle::cargotruck::CargoTruck;
+use crate::vehicle::ship::Ship;
 use crate::vehicle::vehicle::{MoveIntent, PatienceLevel, Vehicle};
 use crate::vehicle::vehicle::PatienceLevel::{Maxed, Low, Critical, Starved};
 use crate::vehicle::vehicle_type::VehicleType;
@@ -27,9 +30,9 @@ pub struct TrafficHandler{
     dock: Option<Coord>,
     pub(crate) map: Rc<RefCell<Map>>,
     pub(crate) passed_frames: usize,
-    pub(crate) fails_by_type: HashMap<VehicleType, u8>,
-    pub(crate) fails: Vec<ThreadId>,
-    pub(crate) successes: Vec<ThreadId>,
+    pub(crate) fails_by_type: HashMap<usize, HashMap<VehicleType, u8>>,
+    pub(crate) fails: HashMap<usize, Vec<ThreadId>>,
+    pub(crate) successes: HashMap<usize, Vec<ThreadId>>,
 }
 
 impl TrafficHandler {
@@ -48,12 +51,85 @@ impl TrafficHandler {
             map,
             passed_frames: 0,
             fails_by_type: HashMap::new(),
-            successes: Vec::new(),
-            fails: Vec::new(),
+            successes: HashMap::new(),
+            fails: HashMap::new(),
         }
     }
 
     pub fn new_car(&mut self, tid: ThreadId) {
+        let mut origin = Self::any_coord(self.road_coords.clone());
+        let mut map = self.map.borrow_mut();
+        let mut rb = map.get_block_at(origin);
+        let mut road: &mut RoadBlock = rb.unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
+        let mut top: i8 = 10;
+        loop {
+            if road.is_available() {
+                road.consume_space();
+                break;
+            }
+            if top <= 10 { return }
+            top -= 1;
+            origin = Self::any_coord(self.road_coords.clone());
+            rb = map.get_block_at(origin);
+            road = rb.unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
+        }
+
+        let destination = Self::any_coord(self.shops_coords.clone());
+        let mut nc = Car::new(origin, destination);
+        nc.initialize(&self.map.borrow_mut(), tid);
+
+        self.vehicles.insert(tid, Box::new(nc));
+    }
+    pub fn new_ambulance(&mut self, tid: ThreadId) {
+        let mut origin = Self::any_coord(self.road_coords.clone());
+        let mut map = self.map.borrow_mut();
+        let mut rb = map.get_block_at(origin);
+        let mut road: &mut RoadBlock = rb.unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
+        let mut top: i8 = 10;
+        loop {
+            if road.is_available() {
+                road.consume_space();
+                break;
+            }
+            if top <= 10 { return }
+            top -= 1;
+            origin = Self::any_coord(self.road_coords.clone());
+            rb = map.get_block_at(origin);
+            road = rb.unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
+        }
+
+        let destination = Self::any_coord(self.shops_coords.clone());
+        let mut na = Ambulance::new(origin, destination);
+        na.initialize(&self.map.borrow_mut(), tid);
+
+        self.vehicles.insert(tid, Box::new(na));
+    }
+    pub fn new_ship(&mut self, tid: ThreadId) {
+        let mut origin = Self::any_coord(self.water_spawns.clone());
+        let mut map = self.map.borrow_mut();
+        let mut rb = map.get_block_at(origin);
+        let mut water: &mut WaterBlock = rb.unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
+        let mut top: i8 = 10;
+        loop {
+            if water.is_available() {
+                water.consume_space();
+                break;
+            }
+            if top <= 10 { return }
+            top -= 1;
+            origin = Self::any_coord(self.road_coords.clone());
+            rb = map.get_block_at(origin);
+            water = rb.unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
+        }
+
+        let destination = self.dock.as_mut().unwrap();
+        let mut ns = Ship::new(origin, *destination);
+        ns.initialize(&self.map.borrow_mut(), tid);
+
+        self.vehicles.insert(tid, Box::new(ns));
+    }
+
+    pub fn new_truck(&mut self, tid: ThreadId, destination: Coord, spec: SupplySpec) {
         let mut origin = Self::any_coord(self.road_coords.clone());
         let mut map = self.map.borrow_mut();
         let mut rb = map.get_block_at(origin);
@@ -68,13 +144,11 @@ impl TrafficHandler {
             road = rb.unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
         }
 
-        let destination = Self::any_coord(self.shops_coords.clone());
-        let mut nc = Car::new(origin, destination);
-        nc.initialize(&self.map.borrow_mut(), tid);
+        let mut ns = CargoTruck::new(origin, destination, spec);
+        ns.initialize(&self.map.borrow_mut(), tid);
 
-        self.vehicles.insert(tid, Box::new(nc));
+        self.vehicles.insert(tid, Box::new(ns));
     }
-
     fn any_coord(vec: Vec<Coord>) -> Coord {
         vec.choose(&mut rand::rng()).cloned().unwrap()
     }
@@ -85,6 +159,7 @@ impl TrafficHandler {
 
     pub fn advance_time(&mut self) {
         //  Avanza en la carretera u prepara los puentes
+        self.passed_frames += 1;
         let mut planned_for_bridge: HashMap<Coord, Vec<ThreadId>> = HashMap::new();
         for tid in self.vehicles.keys().cloned().collect::<Vec<_>>() {
             if let Some(v_type) = self.vehicles.get(&tid) {
@@ -139,7 +214,10 @@ impl TrafficHandler {
                         .as_any().downcast_mut::<NuclearPlantBlock>()
                         .unwrap().commit_delivery(truck)
                 }
-                self.successes.push(*tid);
+                self.successes
+                    .entry(self.passed_frames)
+                    .or_insert_with(Vec::new)
+                    .push(*tid);
                 self.vehicles.remove(&tid);
                 None
             }
@@ -167,8 +245,15 @@ impl TrafficHandler {
                          }
                      }
                     Starved => {
-                        *self.fails_by_type.entry(v_type).or_insert(0) += 1;
-                        self.fails.push(*tid);
+                        *self.fails_by_type
+                            .entry(self.passed_frames)
+                            .or_insert_with(HashMap::new)
+                            .entry(v_type)
+                            .or_insert(0) += 1;
+                        self.fails
+                            .entry(self.passed_frames)
+                            .or_insert_with(Vec::new)
+                            .push(*tid);
                         self.vehicles.remove(&tid);
                     }
                     _ => {}
@@ -215,8 +300,15 @@ impl TrafficHandler {
                         }
                     }
                     Starved => {
-                        *self.fails_by_type.entry(v_type).or_insert(0) += 1;
-                        self.fails.push(*tid);
+                        *self.fails_by_type
+                            .entry(self.passed_frames)
+                            .or_insert_with(HashMap::new)
+                            .entry(v_type)
+                            .or_insert(0) += 1;
+                        self.fails
+                            .entry(self.passed_frames)
+                            .or_insert_with(Vec::new)
+                            .push(*tid);
                         self.vehicles.remove(&tid);
                     }
                     _ => {}
