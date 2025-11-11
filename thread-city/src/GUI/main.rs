@@ -61,8 +61,9 @@ fn border_for_plant_status(ps: PlantStatus) -> (f64, f64, f64) {
 
 
 
+
 fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
-    // Geometría del área en píxeles lógicos
+    // Geometría del área en píxeles lógicos (GTK4 usa logical coords).
     let alloc = area.allocation();
     let w_px = alloc.width() as f64;
     let h_px = alloc.height() as f64;
@@ -72,7 +73,7 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     let w = (w_i16.max(0) as usize).max(1);
     let h = (h_i16.max(0) as usize).max(1);
 
-    // Tamaño de celda cuadrada (usa floor para evitar bleeding)
+    // Tamaño de celda cuadrada
     let cell_w = (w_px / (w as f64)).floor();
     let cell_h = (h_px / (h as f64)).floor();
     let cell = cell_w.min(cell_h).max(1.0);
@@ -85,57 +86,35 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     cr.set_source_rgb(0.12, 0.12, 0.12);
     cr.paint().unwrap();
 
-    // Depuración: contadores por tipo (por frame)
-    let mut counts: HashMap<&'static str, usize> = HashMap::new();
-
-    // Único borrow del closure mut de estado de planta
+    // Único borrow del closure mutante (estado de planta) para todo el frame
     let mut plant_status = hooks.plant_status_at.borrow_mut();
 
-    // ==== DIBUJO DE CELDAS ====
+    // Dibujo de celdas
     for y in 0..h {
         for x in 0..w {
             let coord = Coord::new(x as i16, y as i16);
 
-            // Esquina sup-izq en píxeles para esta celda
+            // Esquina superior-izquierda de la celda en píxeles
             let x_px = ox + (x as f64) * cell;
             let y_px = oy + (y as f64) * cell;
 
-            cr.save().unwrap();
+            cr.save().unwrap();              // aísla estado por celda
             cr.set_operator(Operator::Over);
             cr.set_line_width(1.0);
 
-            // 1) Relleno según tipo, o gris si None
+            // Relleno según tipo (o gris si None)
             if let Some(bt) = (hooks.block_type_at)(coord) {
-                // Depuración: contabiliza tipos
-                let name = match bt {
-                    BlockType::Road         => "Road",
-                    BlockType::Bridge       => "Bridge",
-                    BlockType::Shops        => "Shops", // <-- si tu enum es Shops
-                    // BlockType::Shop       => "Shop",  // <-- usa esta línea si tu enum es Shop
-                    BlockType::Dock         => "Dock",
-                    BlockType::Water        => "Water",
-                    BlockType::NuclearPlant => "NuclearPlant",
-                    _                       => "_other",
-                };
-                *counts.entry(name).or_insert(0) += 1;
-
                 let (r, g, b) = color_for_block(&bt);
                 cr.set_source_rgb(r, g, b);
             } else {
-                // Sin bloque en esa coord -> gris
                 cr.set_source_rgb(0.25, 0.25, 0.25);
-
-                // Depuración: si es la última fila, loguéalo
-                if y == h - 1 {
-                    eprintln!("[DBG] block_type_at(None) en última fila: (x={}, y={})", x, y);
-                }
             }
 
-            // 2) Relleno de celda dejando 1px de rejilla
+            // Relleno dejando 1px de "rejilla" visual
             cr.rectangle(x_px, y_px, cell - 1.0, cell - 1.0);
             cr.fill().unwrap();
 
-            // 3) Borde por estado de planta (si aplica)
+            // Borde por estado de planta (si aplica)
             if let Some(ps) = (plant_status)(coord) {
                 let (br, bg, bb) = border_for_plant_status(ps);
                 cr.set_source_rgb(br, bg, bb);
@@ -144,7 +123,7 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
                 cr.stroke().unwrap();
             }
 
-            // 4) Overlay de ocupación (círculo rojo)
+            // Overlay: círculo rojo si está ocupado
             if (hooks.is_occupied)(coord) {
                 cr.set_source_rgb(0.95, 0.20, 0.20);
                 let cx = x_px + cell * 0.5;
@@ -157,34 +136,8 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
             cr.restore().unwrap();
         }
     }
-
-    // ===== Overlay de depuración: resalta la última fila para asegurar que se está dibujando =====
-    {
-        cr.save().unwrap();
-        cr.set_operator(Operator::Over);
-        cr.set_source_rgba(1.0, 0.0, 1.0, 0.12); // magenta muy suave
-        let y_last = oy + (h as f64 - 1.0) * cell;
-        cr.rectangle(ox, y_last, (w as f64) * cell, cell);
-        cr.fill().unwrap();
-        cr.restore().unwrap();
-    }
-
-    // (Opcional) marco del grid completo, útil para ver límites reales
-    {
-        cr.save().unwrap();
-        cr.set_operator(Operator::Over);
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.25);
-        cr.set_line_width(1.0);
-        cr.rectangle(ox, oy, (w as f64) * cell, (h as f64) * cell);
-        cr.stroke().unwrap();
-        cr.restore().unwrap();
-    }
-
-    // Log final por frame
-    if !counts.is_empty() {
-        eprintln!("[draw] world {}x{} tipos: {:?}", w, h, counts);
-    }
 }
+
 
 
 
