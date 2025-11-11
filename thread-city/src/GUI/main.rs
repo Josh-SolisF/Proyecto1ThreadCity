@@ -30,7 +30,7 @@ pub struct UiHooks {
     block_type_at: Rc<dyn Fn(Coord) -> Option<BlockType>>,
     is_occupied: Rc<dyn Fn(Coord) -> bool>,
     plant_status_at: Rc<RefCell<dyn FnMut(Coord) -> Option<PlantStatus>>>, 
-    tick: Rc<RefCell<dyn FnMut()>>, // avanza 1 frame
+    tick: Rc<RefCell<dyn FnMut()>>,
 }
 
 
@@ -86,7 +86,7 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
     cr.set_source_rgb(0.12, 0.12, 0.12);
     cr.paint().unwrap();
 
-    // Único borrow del closure mutante (estado de planta) para todo el frame
+    // Único borrow del closure
     let mut plant_status = hooks.plant_status_at.borrow_mut();
 
     // Dibujo de celdas
@@ -123,7 +123,7 @@ fn draw_world(area: &DrawingArea, cr: &cairo::Context, hooks: &UiHooks) {
                 cr.stroke().unwrap();
             }
 
-            // Overlay: círculo rojo si está ocupado
+            // Overlay círculo rojo si está ocupado
             if (hooks.is_occupied)(coord) {
                 cr.set_source_rgb(0.95, 0.20, 0.20);
                 let cx = x_px + cell * 0.5;
@@ -193,23 +193,23 @@ fn main() {
 pub(crate) fn make_hooks_from_world() -> UiHooks {
 
 
-    // 1) Controlador de simulación (map, tráfico, plantas, etc.)
+    //Controlador de simulación (map, tráfico, plantas, etc.)
     let sim: Rc<RefCell<SimulationController>> =
         Rc::new(RefCell::new(SimulationController::new()));
 
-    // 2) Ocupación visible para la GUI (se actualiza en cada tick)
+    // Ocupación visible para la GUI (se actualiza en cada tick)
     let occupancy = Rc::new(RefCell::new(HashSet::<(i16, i16)>::new()));
 
 
     let world_size = {
         let sim = Rc::clone(&sim);
         Rc::new(move || -> (i16, i16) {
-            // PRÉSTAMO 1: SimulationController (inmutable)
+            //SimulationController (inmutable)
             let sim_borrow = sim.borrow();
-            // PRÉSTAMO 2: Map (inmutable) — depende del anterior
+            // Map (inmutable) depende del anterior
             let map_borrow = sim_borrow.map.borrow();
             (map_borrow.width_cells(), map_borrow.height_cells())
-            // Ambos borrows salen de scope al final de la clausura, sin temporales colgando
+            // Ambos borrows salen de scope al final
         })
     };
 
@@ -222,26 +222,26 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
         })
     };
 
-    // 5) Ocupado (lo consulta del HashSet que llenamos en cada tick)
+    //Hashmap de ocupado
     let is_occupied = {
         let occupancy = Rc::clone(&occupancy);
         Rc::new(move |coord: Coord| -> bool {
-            let occ = occupancy.borrow();   // Ref<HashSet<(i16,i16)>>
+            let occ = occupancy.borrow();
             occ.contains(&(coord.x, coord.y))
         })
     };
 
-    // 6) Estado de planta nuclear (borrow_mut efímero sobre el Map)
+    //Estado de planta nuclear
     let plant_status_at = {
         let sim = Rc::clone(&sim);
         Rc::new(RefCell::new(move |coord: Coord| -> Option<PlantStatus> {
-            let sim_borrow = sim.borrow();            // inmutable
-            let mut map_borrow = sim_borrow.map.borrow_mut(); // mutable efímero
+            let sim_borrow = sim.borrow();
+            let mut map_borrow = sim_borrow.map.borrow_mut();
             map_borrow.try_plant_status_at(coord)
         }))
     };
 
-    // 7) Tick: avanza 1 frame y reconstruye la ocupación desde TrafficHandler::occupied_coords()
+    //Tick: avanza 1 frame y reconstruye la ocupación desde TrafficHandler::occupied_coords()
     let tick = {
         let sim = Rc::clone(&sim);
         let occ_rc = Rc::clone(&occupancy);
@@ -251,12 +251,12 @@ pub(crate) fn make_hooks_from_world() -> UiHooks {
             {
                 let mut sb = sim.borrow_mut();
                 sb.advance_time(1);
-            } // <- suelta borrow_mut aquí
+            }
 
             // Lee posiciones actuales
             let coords = {
-                let sb = sim.borrow();               // inmutable
-                sb.traffic.occupied_coords()         // Vec<Coord>
+                let sb = sim.borrow();
+                sb.traffic.occupied_coords()
             };
 
             // Actualiza ocupación
