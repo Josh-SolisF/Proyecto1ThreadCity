@@ -18,6 +18,7 @@ use crate::cityblock::transport_policy::TransportPolicy;
 use crate::cityblock::water::WaterBlock;
 use crate::vehicle::vehicle_type::VehicleType;
 
+
 pub struct Map {
     pub(crate) grid: Vec<Vec<Box<dyn Block>>>,
     pub(crate) height: i16,
@@ -50,6 +51,10 @@ impl Map {
             .get_mut(y)
             .and_then(|row| row.get_mut(x))
             .map(|b| &mut **b)
+    }
+
+    pub fn block_state_at(&self, c: Coord) -> bool {
+        self.grid[c.y as usize][c.x as usize].can_pass()
     }
 
     pub fn block_type_at(&self, c: Coord) -> Option<BlockType> {
@@ -129,7 +134,7 @@ impl Map {
             None
         }
     }
-    pub fn map_25x25_with_all_blocks() -> Map {
+    pub fn map_25x25_with_all_blocks(mutex1: MyMutex, mutex2: MyMutex, mutex3: MyMutex) -> Map {
         let mut grid: Vec<Vec<Box<dyn Block>>> = Vec::with_capacity(25);
 
         // y = 0
@@ -450,18 +455,18 @@ impl Map {
         grid.push(vec![
 
             Box::new(WaterBlock::new(251)),
-            Box::new(BridgeBlock::new(252, Control::with_traffic(8, 10), MyMutex::new())),
+            Box::new(BridgeBlock::new(252, Control::with_traffic(8, 10), mutex1)),
             Box::new(WaterBlock::new(253)),
             Box::new(WaterBlock::new(254)),
             Box::new(WaterBlock::new(255)),
-            Box::new(BridgeBlock::new(256,Control::without_traffic(true),MyMutex::new())),
+            Box::new(BridgeBlock::new(256,Control::without_traffic(true), mutex2)),
 
             Box::new(WaterBlock::new(257)),
             Box::new(WaterBlock::new(258)),
             Box::new(WaterBlock::new(259)),
             Box::new(WaterBlock::new(260)),
             Box::new(WaterBlock::new(261)),
-            Box::new(BridgeBlock::new(262,Control::without_traffic(false),MyMutex::new())),
+            Box::new(BridgeBlock::new(262,Control::without_traffic(false), mutex3)),
 
             Box::new(WaterBlock::new(263)),
             Box::new(WaterBlock::new(264)),

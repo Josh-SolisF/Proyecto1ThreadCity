@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use rand::Rng;
+use mypthreads::mythread::mutexlockkind::MyMutexAttr;
+use mypthreads::mythread::mymutex::MyMutex;
 use mypthreads::mythread::mypthread::MyPThread;
 use mypthreads::mythread::mythread::{AnyParam, MyTRoutine, MyThreadAttr, ThreadId};
 use crate::city::traffic_handler::TrafficHandler;
@@ -21,7 +23,22 @@ pub struct SimulationController {
 
 impl SimulationController {
     pub fn new() -> Self {
-        let city_map = Rc::new(RefCell::new(Map::map_25x25_with_all_blocks()));
+        let mut mpt = MyPThread::new();
+        let mut mut1 = MyMutex::new();
+        let mut mut2 = MyMutex::new();
+        let mut mut3 = MyMutex::new();
+        let mut mut_at1 = MyMutexAttr::new(0);
+        let mut mut_at2 = MyMutexAttr::new(0);
+        let mut mut_at3 = MyMutexAttr::new(0);
+
+        unsafe {
+            mpt.my_mutex_init(&mut mut1, &mut mut_at1);
+            mpt.my_mutex_init(&mut mut2, &mut mut_at2);
+            mpt.my_mutex_init(&mut mut3, &mut mut_at3);
+
+        }
+
+        let city_map = Rc::new(RefCell::new(Map::map_25x25_with_all_blocks(mut1, mut2, mut3)));
         let plants = city_map.borrow().find_blocks(NuclearPlant);
         let traf = TrafficHandler::new(city_map.clone(),
                                        vec![ Coord::new(23, 0),
@@ -31,7 +48,7 @@ impl SimulationController {
             traffic: traf,
             nuclear_plants: plants,
             map: city_map,
-            my_pthread: MyPThread::new(),
+            my_pthread: mpt,
         }
     }
     pub fn advance_time(&mut self, frames: u8) {

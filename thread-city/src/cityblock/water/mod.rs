@@ -23,6 +23,9 @@ impl Block for WaterBlock {
     fn as_any(&mut self) -> &mut dyn Any  {
         self
     }
+    fn can_pass(&self) -> bool {
+        self.is_available()
+    }
 }
 
 impl WaterBlock {

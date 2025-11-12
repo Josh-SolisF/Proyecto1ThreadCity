@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use glib::PropertyGet;
 use rand::prelude::IndexedRandom;
 use mypthreads::mythread::mythread::ThreadId;
 use crate::cityblock::block_type::BlockType::{Bridge, Dock, Road, Shops, Water, NuclearPlant};
@@ -202,7 +203,7 @@ impl TrafficHandler {
 
     fn road_intention(&mut self, tid: &ThreadId) -> Option<(Coord, ThreadId)> {
         let (intent, from, v_type) = {
-            let mut map = self.map.borrow_mut();
+            let map = self.map.borrow();
             let vref: &Box<dyn Vehicle> = self.vehicles.get_mut(tid)?;
             (vref.plan_next_move(&map), vref.current(), *vref.get_type())
         };
@@ -229,7 +230,9 @@ impl TrafficHandler {
 
                 let mut map = self.map.borrow_mut();
                 if let Some(bridge) = map.get_block_at(from).unwrap().as_any().downcast_mut::<BridgeBlock>() {
-                    if self.handle_bridge_exit(to, v_type, v_patience, bridge) {
+                    let binding = self.map.borrow(); // solo lectura
+
+                    if self.handle_bridge_exit(&binding, to, v_type, v_patience, bridge) {
                         let get_out: &mut RoadBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
                         self.vehicles.get_mut(&tid)?.try_move(get_out.consume_space());
                     }
@@ -282,7 +285,8 @@ impl TrafficHandler {
                 };
 
                 if let Some(bridge) = map.get_block_at(from).unwrap().as_any().downcast_mut::<BridgeBlock>() {
-                    if self.handle_bridge_exit(to, v_type, v_patience, bridge) {
+                    let binding = self.map.borrow(); // solo lectura
+                    if self.handle_bridge_exit(&binding, to, v_type, v_patience, bridge) {
                         let get_out: &mut WaterBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
                         self.vehicles.get_mut(&tid)?.try_move(get_out.consume_space());
                     }
@@ -317,9 +321,14 @@ impl TrafficHandler {
             }
         }
     }
-     fn handle_bridge_exit(&self, to_coord: Coord, v_type: VehicleType, v_pat: PatienceLevel, bridge: &mut BridgeBlock) -> bool {
-         let mut binding = self.map.borrow_mut();
-         let to: &mut RoadBlock = binding.get_block_at(to_coord).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
-         to.is_available() && bridge.exit_bridge(v_type, v_pat)
+    fn handle_bridge_exit(
+        &self,
+        map: &Map,
+        to_coord: Coord,
+        v_type: VehicleType,
+        v_pat: PatienceLevel,
+        bridge: &mut BridgeBlock,
+    ) -> bool {
+        map.block_state_at(to_coord) && bridge.exit_bridge(v_type, v_pat)
     }
 }

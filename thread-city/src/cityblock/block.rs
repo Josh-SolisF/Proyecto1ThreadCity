@@ -27,5 +27,7 @@ pub trait Block: Any {
     fn get_policy(&self) -> &TransportPolicy;
     fn get_type(&self) -> &BlockType;
     fn as_any(&mut self) -> &mut dyn Any;
-
+    fn can_pass(&self) -> bool {
+        true
+    }
 }

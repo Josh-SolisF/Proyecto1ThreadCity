@@ -56,7 +56,7 @@ mod tests {
     {
         // Para prestar 'static en tests, guardamos el mapa en un Box y luego
         // hacemos 'leak' controlado SOLO dentro del test (válido en tests).
-        let map = Rc::new(RefCell::new(Map::map_25x25_with_all_blocks()));
+        let map = Rc::new(RefCell::new(Map::map_25x25_with_all_blocks(MyMutex::new(), MyMutex::new(), MyMutex::new())));
 
         let mut handler = TrafficHandler::new(map, vec![]);
         let tid: ThreadId = 1; // ajusta si ThreadId no es usize
