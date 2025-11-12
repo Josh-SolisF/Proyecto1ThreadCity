@@ -72,4 +72,7 @@ impl BridgeBlock {
     pub fn return_mutex(&mut self) -> Option<MyMutex> {
         self.mutex.take()
     }
+    pub fn advance_time(&mut self, frames: usize) {
+        self.control.advance_time(frames);
+    }
 }

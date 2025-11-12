@@ -8,6 +8,7 @@ use mypthreads::mythread::mypthread::MyPThread;
 use mypthreads::mythread::mythread::{AnyParam, MyTRoutine, MyThreadAttr, ThreadId};
 use crate::city::traffic_handler::TrafficHandler;
 use crate::cityblock::block_type::BlockType::NuclearPlant;
+use crate::cityblock::bridge::BridgeBlock;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::map::Map;
 use crate::cityblock::nuclearplant::NuclearPlantBlock;
@@ -17,6 +18,7 @@ use crate::cityblock::nuclearplant::supply_spec::SupplySpec;
 pub struct SimulationController {
     pub(crate) traffic: TrafficHandler,
     pub(crate) nuclear_plants: Vec<Coord>,
+    pub(crate) with_traffic_bridge: Coord,
     pub(crate) map: Rc<RefCell<Map>>,
     pub(crate) my_pthread: MyPThread,
 }
@@ -49,10 +51,17 @@ impl SimulationController {
             nuclear_plants: plants,
             map: city_map,
             my_pthread: mpt,
+            with_traffic_bridge: Coord::new(1, 10),
         }
     }
     pub fn advance_time(&mut self, frames: u8) {
         for _ in 0..frames {
+            {
+                let mut map = self.map.borrow_mut();
+                if let Some(b) = map.get_block_at(self.with_traffic_bridge).unwrap().as_any().downcast_mut::<BridgeBlock>() {
+                   b.advance_time(1);
+                }
+            }
             let mut scheds : HashMap<Coord, Vec<SupplySpec>> = HashMap::new();
             for coord in self.nuclear_plants.clone().iter() {
                 let mut map = self.map.borrow_mut();

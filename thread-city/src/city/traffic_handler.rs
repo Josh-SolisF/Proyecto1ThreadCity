@@ -228,17 +228,19 @@ impl TrafficHandler {
                     v_mut.as_ref()?.calc_patience()
                 };
 
-                let mut map = self.map.borrow_mut();
-                if let Some(bridge) = map.get_block_at(from).unwrap().as_any().downcast_mut::<BridgeBlock>() {
-                    let binding = self.map.borrow(); // solo lectura
+                if self.map.borrow().block_type_at(from).unwrap() == Bridge && self.map.borrow().block_state_at(to){
+                    let mut map = self.map.borrow_mut();
+                    if let Some(bridge) = map.get_block_at(from).unwrap().as_any().downcast_mut::<BridgeBlock>() {
 
-                    if self.handle_bridge_exit(&binding, to, v_type, v_patience, bridge) {
-                        let get_out: &mut RoadBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
-                        self.vehicles.get_mut(&tid)?.try_move(get_out.consume_space());
+                        if bridge.exit_bridge(v_type, v_patience) {
+                            let get_out: &mut RoadBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
+                            self.vehicles.get_mut(&tid)?.try_move(get_out.consume_space());
+                        }
+                        return None;
                     }
-                    return None;
                 }
 
+                let mut map = self.map.borrow_mut();
                 let next_rbl: &mut RoadBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
                 let result = self.vehicles.get_mut(&tid)?.try_move(next_rbl.consume_space());
                 match result {
@@ -268,8 +270,8 @@ impl TrafficHandler {
         }
     }
     fn aquatic_intention(&mut self, tid: &ThreadId) -> Option<(Coord, ThreadId)> {
-        let mut map = self.map.borrow_mut();
         let (intent, from, v_type) = {
+            let map = self.map.borrow();
             let vref: &Box<dyn Vehicle> = self.vehicles.get_mut(tid)?;
             (vref.plan_next_move(&map), vref.current(), *vref.get_type())
         };
@@ -283,16 +285,18 @@ impl TrafficHandler {
                     let v_mut = self.vehicles.get_mut(&tid);
                     v_mut.as_ref()?.calc_patience()
                 };
+                if self.map.borrow().block_type_at(from).unwrap() == Bridge && self.map.borrow().block_state_at(to){
+                    let mut map = self.map.borrow_mut();
+                    if let Some(bridge) = map.get_block_at(from).unwrap().as_any().downcast_mut::<BridgeBlock>() {
 
-                if let Some(bridge) = map.get_block_at(from).unwrap().as_any().downcast_mut::<BridgeBlock>() {
-                    let binding = self.map.borrow(); // solo lectura
-                    if self.handle_bridge_exit(&binding, to, v_type, v_patience, bridge) {
-                        let get_out: &mut WaterBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
-                        self.vehicles.get_mut(&tid)?.try_move(get_out.consume_space());
+                        if bridge.exit_bridge(v_type, v_patience) {
+                            let get_out: &mut WaterBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
+                            self.vehicles.get_mut(&tid)?.try_move(get_out.consume_space());
+                        }
+                        return None;
                     }
-                    return None;
                 }
-
+                let mut map = self.map.borrow_mut();
                 let next_rbl: &mut WaterBlock = map.get_block_at(to).unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
                 let result = self.vehicles.get_mut(&tid)?.try_move(next_rbl.consume_space());
                 match result {
@@ -320,15 +324,5 @@ impl TrafficHandler {
                 Some((to, *tid))
             }
         }
-    }
-    fn handle_bridge_exit(
-        &self,
-        map: &Map,
-        to_coord: Coord,
-        v_type: VehicleType,
-        v_pat: PatienceLevel,
-        bridge: &mut BridgeBlock,
-    ) -> bool {
-        map.block_state_at(to_coord) && bridge.exit_bridge(v_type, v_pat)
     }
 }

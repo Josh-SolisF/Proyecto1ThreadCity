@@ -88,6 +88,9 @@ impl Control {
         let mut worst_index: Option<usize> = None;
         let mut worst_value: i32 = -1;
 
+        if !self.has_yield && !self.can_pass_boats && !self.in_traffic_light.clone().unwrap().can_pass() {
+            return None;
+        }
         for (i, (_, patience)) in temp.iter().enumerate() {
             let score = match patience {
                 Critical => 3,
@@ -104,8 +107,8 @@ impl Control {
         vehicles[worst_index.unwrap()].base().thread_id
     }
     pub fn allow_out(&mut self, vehicle_type: VehicleType, patience_level: PatienceLevel) -> bool {
-        if !self.has_yield {
-            if vehicle_type == AmbulanceE || vehicle_type == ShipE { return true}
+        if !self.has_yield && !self.can_pass_boats {
+            if vehicle_type == AmbulanceE || vehicle_type == ShipE { return true }
             return self.out_traffic_light.clone().unwrap().can_pass();
         }
         match vehicle_type {
