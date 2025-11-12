@@ -158,7 +158,6 @@ impl MyTRuntime {
             s.on_exit(tid);
         }
 
-        // Despertar joiners.
         self.wake_joiners(&tid);
         if detached {
 
@@ -187,11 +186,6 @@ impl MyTRuntime {
     }
 
 
-
-
-
-
-    // Cambia el estado del hilo si existe.
     pub fn set_state(&mut self, tid: ThreadId, st: ThreadState) {
         if let Some(t) = self.threads.get_mut(&tid) {
             t.state = st;
@@ -211,14 +205,6 @@ impl MyTRuntime {
         self.threads.get(&tid).map(|t| t.state)
     }
 
- /*   /// Reencola un hilo.
-    pub fn enqueue(&mut self, tid: ThreadId) {
-        // Solo encolamos si no está Terminated.
-        if matches!(self.get_state(tid), Some(ThreadState::Ready | ThreadState::Running | ThreadState::Blocked)) {
-            self.run_queue.push_back(tid);
-        }
-    }
-*/
 
     pub fn enqueue(&mut self, tid: ThreadId) {
         self.run_queue.push_back(tid);
@@ -287,24 +273,8 @@ impl MyTRuntime {
         }
     }
 
-    /*
-    pub fn join(&mut self, tid: ThreadId, ret_val: *mut *mut AnyParam) -> c_int {
-        if let Some(th) = self.threads.get_mut(&tid) {
-            // Ejecuta una sola vez
-            if th.state != ThreadState::Terminated {
-                th.run();
-            }
-            if !ret_val.is_null() {
-                unsafe { *ret_val = th.ret_val }
-            }
-            return 0;
-        }
-        -1 // No existe el thread
-    }
-*/
 
 
-    // join controlado por el scheduler, bloquea el hilo actual hasta que `tid` termine.
 
     pub fn join(&mut self, target: ThreadId, ret_val_out: *mut *mut AnyParam) -> c_int {
         //  Validaciones básicas

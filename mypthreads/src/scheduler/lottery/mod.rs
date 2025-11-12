@@ -25,7 +25,7 @@ impl LotteryScheduler {
 
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        // splitmix64: https://prng.di.unimi.it/splitmix64.c
+        // splitmix64: https://prnglot.di.unimi.it/splitmix64.c
         let mut z = self.rng_state.wrapping_add(0x9E37_79B9_7F4A_7C15);
         self.rng_state = z;
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
