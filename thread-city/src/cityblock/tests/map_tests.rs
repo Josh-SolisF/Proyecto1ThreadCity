@@ -28,7 +28,7 @@ mod tests {
             Box::new(NuclearPlantBlock::new(5, 12, 15)),
         ];
         custom.push(arr2);
-        let map = Map::build_custom(custom);
+        let mut map = Map::build_custom(custom);
 
         assert_eq!(3, map.width);
         assert_eq!(2, map.height);

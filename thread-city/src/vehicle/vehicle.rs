@@ -1,27 +1,52 @@
 use std::any::Any;
 use std::collections::{HashMap, HashSet, VecDeque};
 use mypthreads::mythread::mythread::ThreadId;
+use crate::cityblock::block_type::BlockType::Bridge;
 use crate::cityblock::coord::Coord;
 use crate::cityblock::map::Map;
 use crate::vehicle::vehicle_type::VehicleType;
+
+
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MoveIntent {
+    Arrived,
+    NextIsBridge { coord: Coord }, // hook para handler de puentes
+    AdvanceTo { coord: Coord },    // carretera/tienda/etc.
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PatienceLevel {
+    Maxed { moved: bool },
+    Low,
+    Critical,
+    Starved,
+}
+
+
+pub type Occupancy = HashMap<Coord, ThreadId>;
 
 pub struct VehicleBase {
     pub(crate) current_position: Coord,
     pub(crate) vehicle_type: VehicleType,
     pub(crate) destination: Coord,
-    pub(crate) speed: u8,
     pub(crate) path: Option<Vec<Coord>>,
     pub(crate) thread_id: Option<ThreadId>,
+    pub(crate) max_patience: u8,
+    pub(crate) path_idx: usize,
+    pub(crate) patience: u8,
 }
 impl VehicleBase {
-    pub fn new(origin: Coord, destination: Coord, speed: u8, vehicle_type: VehicleType) -> VehicleBase {
+    pub fn new(origin: Coord, destination: Coord, vehicle_type: VehicleType, max_patience: u8) -> VehicleBase {
         Self {
             vehicle_type,
             current_position: origin,
             destination,
-            speed,
             path: None,
             thread_id: None,
+            path_idx: 0,
+            patience: max_patience,
+            max_patience,
         }
     }
     
@@ -44,7 +69,11 @@ impl VehicleBase {
                 }
                 
                 path.reverse();
+
+                let len = path.len();
                 self.path = Some(path);
+                self.path_idx = if len > 1 { 1 } else { 0 };
+
                 return;
             }
             
@@ -67,13 +96,43 @@ impl VehicleBase {
                 }
             }
         }
-        
-        self.path = None
+    }
+
+    #[inline]
+    pub fn thread(&self) -> ThreadId { self.thread_id.expect("Vehicle without ThreadId") }
+
+    // Propone el próximo movimiento (no altera estado global).
+    pub fn plan_next(&self, map: & Map) -> MoveIntent {
+        let Some(path) = self.path.as_ref() else {
+            panic!("Vehicle not initialized!");
+        };
+
+        let next = path[self.path_idx];
+        if let Some(bt) = map.block_type_at(next) {
+            if bt == Bridge {
+                return MoveIntent::NextIsBridge { coord: next };
+            }
+        }
+
+        MoveIntent::AdvanceTo { coord: next }
     }
 
 }
+
+// Trait Vehicle (agrego tick para delegar a advance_time)
 pub trait Vehicle: Any {
     fn get_type(&self) -> &VehicleType;
-    fn as_any(&self) -> &dyn Any;
+    fn as_any(&mut self) -> &mut dyn Any;
     fn initialize(&mut self, map: &Map, tid: ThreadId);
+    fn plan_next_move(&self, map: &Map) -> MoveIntent;
+    fn try_move(&mut self, next_is_open: bool) -> PatienceLevel;
+    fn base(&self) -> &VehicleBase;
+    fn base_mut(&mut self) -> &mut VehicleBase;
+    fn current(&self) -> Coord {
+        self.base().current_position
+    }
+    fn calc_patience(&self) -> PatienceLevel;
+
 }
+
+

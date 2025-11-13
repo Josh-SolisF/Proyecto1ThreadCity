@@ -30,7 +30,7 @@ impl MyThreadAttr {
         self.detached = true;
     }
 
-    /// Devuelve un puntero al pthread_attr_t interno (para pasar a pthread_create)
+    // Devuelve un puntero al pthread_attr_t interno (para pasar a pthread_create)
     pub fn c_pointer(&self) -> *const pthread_attr_t {
         &self.inner
     }

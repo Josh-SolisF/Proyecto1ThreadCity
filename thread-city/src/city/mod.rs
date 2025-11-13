@@ -2,6 +2,8 @@ use mypthreads::mythread::mypthread::MyPThread;
 use crate::cityblock::map::Map;
 
 pub mod supply_kind;
+pub mod traffic_handler;
+pub mod simulation_controller;
 
 pub struct ThreadCity {
     pub map: Map,

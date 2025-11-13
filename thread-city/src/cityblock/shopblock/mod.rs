@@ -37,11 +37,7 @@ impl Block for ShopBlock {
         &self.base.block_type
     }
 
-    fn is_blocked(&self) -> bool {
-        todo!()
-    }
-
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&mut self) -> &mut dyn Any {
         self
     }
 }

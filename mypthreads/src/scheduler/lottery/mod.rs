@@ -5,7 +5,6 @@ use crate::mythread::mythread::{MyThread, ThreadId};
 use super::Scheduler;
 
 
-/// 0 = prioridad más, 255 = menos.
 
 pub struct LotteryScheduler {
     entries: Vec<(ThreadId, u32)>, // (tid, tickets)
@@ -26,7 +25,7 @@ impl LotteryScheduler {
 
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        // splitmix64: https://prng.di.unimi.it/splitmix64.c
+        // splitmix64: https://prnglot.di.unimi.it/splitmix64.c
         let mut z = self.rng_state.wrapping_add(0x9E37_79B9_7F4A_7C15);
         self.rng_state = z;
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
@@ -75,12 +74,10 @@ impl Scheduler for LotteryScheduler {
     }
 
     fn on_block(&mut self, _tid: ThreadId) {
-        // En esta versión mínima no mantenemos mapa para quitar selectivamente.
-        // Ver necesitamos quitar al bloquear, si es así conviene cambiar a HashMap<tid, tickets>
-        // y una lista separada de índices por pick aleatorio.
+
     }
 
-    fn on_exit(&mut self, _tid: ThreadId) { /* idem comentario */ }
+    fn on_exit(&mut self, _tid: ThreadId) {  }
 
     fn is_empty(&self) -> bool { self.entries.is_empty() }
 }

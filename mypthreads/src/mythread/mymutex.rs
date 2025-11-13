@@ -66,12 +66,12 @@ impl MyMutex {
     }
 
     pub fn unlock(&mut self, tid: Option<ThreadId>) -> c_int {
-        if tid.is_none() {
-            return UnknownThread as c_int;
-        }
-        if self.owner != tid {
-            return MutexInvalidOwner as c_int;
-        }
+      //  if tid.is_none() {
+       //     return UnknownThread as c_int;
+       // }
+       // if self.owner != tid {
+        //    return MutexInvalidOwner as c_int;
+        //}
         self.locked.store(false, Ordering::Release);
         self.owner = None;
 

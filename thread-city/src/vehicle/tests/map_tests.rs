@@ -48,7 +48,7 @@ mod complex_routing {
         custom.push(arr3);
 
         let tid: ThreadId = 0;
-        let mut carr = Car::new(Coord::new(0, 3), Coord::new(3, 3), 1);
+        let mut carr = Car::new(Coord::new(0, 3), Coord::new(3, 3));
         let map = Map::build_custom(custom);
         carr.initialize(&map, tid);
 
@@ -94,7 +94,7 @@ mod complex_routing {
         custom.push(arr3);
 
         let tid: ThreadId = 0;
-        let mut boat = Ship::new(Coord::new(1, 3), Coord::new(0, 0), 1);
+        let mut boat = Ship::new(Coord::new(1, 3), Coord::new(0, 0));
 
         let map = Map::build_custom(custom);
         boat.initialize(&map, tid);
@@ -136,11 +136,11 @@ mod complex_routing {
         let map = Map::build_custom(custom);
 
         let car_tid: ThreadId = 0;
-        let mut carr = Car::new(Coord::new(1, 0), Coord::new(1, 2), 1);
+        let mut carr = Car::new(Coord::new(1, 0), Coord::new(1, 2));
         carr.initialize(&map, car_tid);
 
         let boat_tid: ThreadId = 1;
-        let mut boat = Ship::new(Coord::new(2, 1), Coord::new(0, 1), 1);
+        let mut boat = Ship::new(Coord::new(2, 1), Coord::new(0, 1));
         boat.initialize(&map, boat_tid);
 
         let boat_expected_path =
@@ -186,7 +186,7 @@ mod complex_routing {
         let map = Map::build_custom(custom);
 
         let tid: ThreadId = 1;
-        let mut boat = Ship::new(Coord::new(2, 0), Coord::new(0, 0), 1);
+        let mut boat = Ship::new(Coord::new(2, 0), Coord::new(0, 0));
         boat.initialize(&map, tid);
 
         let expected = vec![
