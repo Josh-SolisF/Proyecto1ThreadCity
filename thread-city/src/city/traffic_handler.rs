@@ -192,6 +192,18 @@ impl TrafficHandler {
 
             match outcome {
                 GrantedFor { tid } => {
+                    let (from, v_type) = {
+                        let vref: &Box<dyn Vehicle> = self.vehicles.get_mut(&tid).unwrap();
+                        (vref.current(), *vref.get_type())
+                    };
+                    let mut map = self.map.borrow_mut();
+                    if v_type == ShipE {
+                        let current_rbl = map.get_block_at(from).unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
+                        current_rbl.liberate_space();
+                    } else {
+                        let current_rbl = map.get_block_at(from).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
+                        current_rbl.liberate_space();
+                    }
                     self.vehicles.get_mut(&tid).unwrap().try_move(true);
                 }
                 Occupied => {}
@@ -209,6 +221,11 @@ impl TrafficHandler {
         };
         match intent {
             MoveIntent::Arrived => {
+                {
+                    let mut map = self.map.borrow_mut();
+                    let current_rbl = map.get_block_at(from).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
+                    current_rbl.liberate_space();
+                }
                 if self.vehicles.get(tid).unwrap().get_type() == &TruckE {
                     let truck = self.vehicles.get_mut(tid).unwrap().as_any().downcast_mut::<CargoTruck>().unwrap();
                     self.map.borrow_mut().get_block_at(truck.base().destination).unwrap()
@@ -258,7 +275,16 @@ impl TrafficHandler {
                             .entry(self.passed_frames)
                             .or_insert_with(Vec::new)
                             .push(*tid);
+                        let batype = map.block_type_at(from).unwrap();
+                        if batype == Bridge {
+                            let parcial = map.get_block_at(from).unwrap().as_any().downcast_mut::<BridgeBlock>().unwrap();
+                            parcial.exit_bridge(v_type, v_patience);
+
+                        }
+                        let current_rbl = map.get_block_at(from).unwrap().as_any().downcast_mut::<RoadBlock>().unwrap();
+                        current_rbl.liberate_space();
                         self.vehicles.remove(&tid);
+
                     }
                     _ => {}
                 }
@@ -277,6 +303,9 @@ impl TrafficHandler {
         };
         match intent {
             MoveIntent::Arrived => {
+                let mut map = self.map.borrow_mut();
+                let current_rbl = map.get_block_at(from).unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
+                current_rbl.liberate_space();
                 self.vehicles.remove(&tid);
                 None
             }
@@ -314,6 +343,8 @@ impl TrafficHandler {
                             .entry(self.passed_frames)
                             .or_insert_with(Vec::new)
                             .push(*tid);
+                        let current_rbl = map.get_block_at(from).unwrap().as_any().downcast_mut::<WaterBlock>().unwrap();
+                        current_rbl.liberate_space();
                         self.vehicles.remove(&tid);
                     }
                     _ => {}

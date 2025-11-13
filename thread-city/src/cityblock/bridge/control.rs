@@ -2,7 +2,7 @@ use rand::{rng, Rng};
 use mypthreads::mythread::mythread::{ThreadId};
 use crate::cityblock::bridge::traffic_light::TrafficLight;
 use crate::vehicle::vehicle::{PatienceLevel, Vehicle};
-use crate::vehicle::vehicle::PatienceLevel::{Critical, Maxed, Low};
+use crate::vehicle::vehicle::PatienceLevel::{Critical, Maxed, Low, Starved};
 use crate::vehicle::vehicle_type::VehicleType;
 use crate::vehicle::vehicle_type::VehicleType::{AmbulanceE, ShipE, TruckE};
 
@@ -107,6 +107,9 @@ impl Control {
         vehicles[worst_index.unwrap()].base().thread_id
     }
     pub fn allow_out(&mut self, vehicle_type: VehicleType, patience_level: PatienceLevel) -> bool {
+        if patience_level == Starved {
+            return true
+        }
         if !self.has_yield && !self.can_pass_boats {
             if vehicle_type == AmbulanceE || vehicle_type == ShipE { return true }
             return self.out_traffic_light.clone().unwrap().can_pass();

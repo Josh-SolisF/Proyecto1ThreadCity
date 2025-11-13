@@ -50,13 +50,10 @@ impl BridgeBlock {
         if candidate.is_none() { return Occupied }
         match self.mutex.as_mut() {
             Some(m) => {
-                println!("[bridge:{}] try_lock: intentando lock para ", self.base.id);
                 let rc: i32 = m.try_lock(candidate.unwrap());
                 if rc == 0 {
-                    println!("[bridge:{}] try_lock: CONCEDIDO para TID", self.base.id);
                     GrantedFor { tid: candidate.unwrap() } // carril reservado
                 } else {
-                    println!("[bridge:{}] try_lock: OCUPADO (rc={}) ", self.base.id, rc);
                     Occupied
                 }
             }
@@ -67,25 +64,16 @@ impl BridgeBlock {
         let mut pth = MyPThread::new();
         let allowed = (v_type == ShipE) || self.control.allow_out(v_type, v_pat);
 
-        println!(
-            "[bridge:{}] exit_bridge: tipo={:?} paciencia={:?} allowed_out={}",
-            self.base.id, v_type, v_pat, allowed
-        );
-
         if allowed {
             match self.mutex.as_mut() {
                 Some(m) => {
-                    println!("[bridge:{}] UNLOCK: intentando liberar mutex...", self.base.id);
                     unsafe { pth.my_mutex_unlock(m); }
-                    println!("[bridge:{}] UNLOCK: liberado", self.base.id);
                 }
                 None => {
-                    println!("[bridge:{}] ERROR: self.mutex == None en exit_bridge()", self.base.id);
                 }
             }
             return true;
         }
-        println!("[bridge:{}] exit_bridge: NO se permite salida aún", self.base.id);
         false
     }
 
