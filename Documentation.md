@@ -2368,11 +2368,11 @@ políticas de planificación.
 - ​ RHIT CSSE Department, “Userspace Threads i,” CSSE 332.
 https://www.rose-hulman.edu/class/csse/csse332/2324b/labs/lab09/
 
-- ​ Tanenbaum, A. S., & Bos, H. (2015). Modern Operating Systems (4th ed.). Pearson.
-- ​ Especialmente los capítulos sobre scheduling de procesos y sincronización
+- ​ Tanenbaum, A. S., & Bos, H. (2015). Modern Operating Systems (4th ed.). Pearson, Los capítulos sobre scheduling de procesos y sincronización
 - ​ Silberschatz, A., Galvin, P. B., & Gagne, G. (2018). Operating System Concepts
 (10th ed.). Wiley.
-      - ​ splitmix. (s. f.). Hackage. https://hackage.haskell.org/package/splitmix
+- ​ splitmix. (s. f.). Hackage. https://hackage.haskell.org/package/splitmix
+- GeeksforGeeks. (2025, 11 octubre). CPU Scheduling in Operating Systems. GeeksforGeeks. https://www.geeksforgeeks.org/operating-systems/cpu-scheduling-in-operating-systems/
 
 ## Anexo
 
